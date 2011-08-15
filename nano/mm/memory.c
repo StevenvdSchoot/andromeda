@@ -50,18 +50,21 @@ int initHeap(long size)
  * PAE mode:      32-bits // Does a similar trick to 32-bits PMode
  * Long mode:     64-bits // Makes the most of register size
  */
-
+/*
 void memset(void *dest, int sval, size_t count)
 {
   if(!count){return;}
   sval &= 0x000000ff;
+  sval |= sval << 8;
+  sval |= sval << 16;
 #ifndef X86 //64 bit int is only faster at X86, X64 prefers 2 time 32 int
+  sval |= sval << 32;
   unsigned long long val = (unsigned long long)sval;
   char i = 8;
-  for(;i<64;i+=8)
+  /*for(;i<64;i+=8)
   {
     val |= (sval << i);
-  }
+  }*//*
   while(count >= 8)
   {
     *(unsigned long long*)dest = (unsigned long long)val;
@@ -77,10 +80,10 @@ void memset(void *dest, int sval, size_t count)
 #else
   unsigned int val = (unsigned int)sval;
   char i = 8;
-  for(;i<32;i+=8)
+  *//*for(;i<32;i+=8)
   {
     val |= (sval << i);
-  }
+  }*//*
   while(count >= 4)
   {
     *(unsigned int*)dest = (unsigned int)val;
@@ -94,11 +97,10 @@ void memset(void *dest, int sval, size_t count)
     dest += 2;
     count -= 2;
   }
-  if(count >= 1)
+  if(count == 1)
   {
     *(unsigned char*)dest = (unsigned char)val;
   }
-  return;
 }
 
 void memcpy(void *dest, void *src, size_t count)
@@ -134,11 +136,32 @@ void memcpy(void *dest, void *src, size_t count)
     src += 2;
     count -= 2;
   }
-  if(count >= 1)
+  if(count == 1)
   {
     *(unsigned char*)dest = *(unsigned char*)src;
   }
-  return;
+}
+*/
+
+void memset(void* location, int value, size_t size)
+{
+  int i = 0;
+  unsigned char* offset = (unsigned char*)location;
+  for (; i < size; i++)
+  {
+    *(offset+i) = (unsigned char)value;
+  }
+}
+
+void memcpy(void *destination, void* source, size_t num)
+{
+  int i = 0;
+  unsigned char* src = source;
+  unsigned char* dst = destination;
+  for (; i < num; i++)
+  {
+    *(dst+i) = *(src+i);
+  }
 }
 
 int memcmp(void *ptr1, void* ptr2, size_t count)

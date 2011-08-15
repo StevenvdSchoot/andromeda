@@ -1,5 +1,4 @@
-MAKEEND=FLAGS="$(FLAGS) " DEFS="$(DEFS)" $(DEFS)
-MAKE=make
+include ${INCLUDE}
 
 .PHONY: all
 all: x86

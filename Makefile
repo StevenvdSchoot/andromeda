@@ -1,5 +1,5 @@
-include make/makeIncl
-include make/x86
+DIR=${CURDIR}
+include make/makeIncl make/x86
 
 .PHONY: all
 all: new
@@ -20,7 +20,7 @@ $(OUTD):
 	
 	mv -v nano/$(OUTC) ./
 	
-	$(LD) $(LDFLAGS) $(LDCORE) -o $(OUTD) *.o
+	$(LD) -oformat=elf32-i386 -melf_i386 $(LDCORE) -o $(OUTD) *.o
 
 .PHONY: clean
 clean:

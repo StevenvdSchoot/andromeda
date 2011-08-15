@@ -1,6 +1,5 @@
-include ../make/makeIncl
+include ${INCLUDE}
 
-LDFLAGS=-r -nostdlib --oformat=elf32-i386 -melf_i386
 TARGETS=
 CONDITIONAL=GRAPHICS:graphics.o BEEP:beep.o
 TARGETS+=$(call test,CONDITIONAL)

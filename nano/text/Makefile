@@ -1,5 +1,4 @@
-CC=gcc
-CFLAGS=-I../../include/ -nostdlib -fno-builtin -nostdinc -fno-stack-protector -m32 -c -D X86 -D __INTEL -mtune=i686 -march=i386
+include ${INCLUDE}
 
 TARGETS=out.c
 DEPS=include/out.h

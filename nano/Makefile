@@ -1,7 +1,4 @@
-include ../make/makeIncl
-include ../make/x86
-
-MAKEEND=FLAGS="$(FLAGS) " DEFS="$(DEFS)" $(DEFS)
+include ${INCLUDE}
 
 .PHONY: all
 all: x86
@@ -26,7 +23,7 @@ $(OUTC):
 	$(MAKE) -C nano $(MAKEEND)
 	$(MAKE) -C math $(MAKEEND)
 	
-	$(LD) $(LDFLAGS) $(LDCOMPRESSED) -o $(OUTC) *.o
+	$(LD) -oformat=elf32-i386 -melf_i386 $(LDCOMPRESSED) -o $(OUTC) *.o
 
 .PHONY: localClean
 localClean: clean

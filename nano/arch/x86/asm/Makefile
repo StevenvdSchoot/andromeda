@@ -1,15 +1,10 @@
-AS=nasm
-
-ASFLAGS=-felf -D X86 -I../../../../include/
+include ${INCLUDE}
 
 IO=io.asm
 IRQ=irq.asm
 ISR=isr.asm
 GDT=lgdt.asm
 ASM=asm.asm
-
-LD=ld
-LDFLAGS=-r -nostdlib --oformat=elf32-i386 -melf_i386
 
 .PHONY: all
 all: io.o irq.o isr.o lgdt.o asm.o

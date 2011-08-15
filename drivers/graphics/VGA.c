@@ -85,11 +85,11 @@ int setVideoMode(int mode)
 	if(screenbuf==NULL)
 		{screenbuf = 0xA0000;printf("kalloc(%i) returned NULL!\n",videoModes[mode].width * videoModes[mode].height * videoModes[mode].depth);return -1;}
 
-	if ( 0 == setModeViaPorts(videoModes[mode].width, videoModes[mode].height, videoModes[mode].chain4?1:0))
-		{printf("setModeViaPorts(%i,%i,%i) failed!\n",videoModes[mode].width, videoModes[mode].height, videoModes[mode].chain4?1:0);return -1;}
-	memset(0xA0000,11,16);
+	/*if ( 0 == setModeViaPorts(videoModes[mode].width, videoModes[mode].height, videoModes[mode].chain4?1:0))
+		{printf("setModeViaPorts(%i,%i,%i) failed!\n",videoModes[mode].width, videoModes[mode].height, videoModes[mode].chain4?1:0);return -1;}*/
+	
 	memset(screenbuf,0,videoModes[mode].width * videoModes[mode].height * videoModes[mode].depth); //hangs
-	memset(0xA0010,11,16);
+	
 	videoMode = mode;
 	updateScreen();
 	return 0;
@@ -103,14 +103,14 @@ int setVideoMode(int mode)
 
 // misc out (3c2h) value for various modes
 
-void outpw(unsigned short port, unsigned short value)
+inline void outpw(unsigned short port, unsigned short value)
 {
-asm volatile ("outw %%ax,%%dx": :"dN"(port), "a"(value));
+	asm volatile ("outw %%ax,%%dx": :"dN"(port), "a"(value));
 } 
 
-void outp(unsigned short port, unsigned char value)
+inline void outp(unsigned short port, unsigned char value)
 {
-asm volatile ("outb %%al,%%dx": :"dN"(port), "a"(value));
+	asm volatile ("outb %%al,%%dx": :"dN"(port), "a"(value));
 }
 
 /**
