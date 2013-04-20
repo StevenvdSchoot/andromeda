@@ -55,14 +55,18 @@ struct pte {
         struct page_table entry[PTE_SIZE];
 };
 
+struct vm_descriptor;
 struct vm_segment;
 
-/**
- * \struct pte_subs
- * \brief A list of sub segments, so the pte_segment doesn't grow to big
- */
-struct vm_subs {
-        struct vm_segment* segment[PTE_SIZE];
+struct vm_range_descriptor{
+        /* Base pointer */
+        void* base;
+        /* Size descriptor in number of bytes */
+        size_t size;
+
+        struct vm_range_descriptor* next;
+        struct vm_range_descriptor* prev;
+        struct vm_segment* parent;
 };
 
 /**
@@ -93,13 +97,24 @@ struct vm_segment {
          * \var swappable
          * \brief Indicator for page swapping to be allowed or not
          */
+        struct vm_descriptor* parent;
+
         struct vm_segment* next;
+        struct vm_segment* prev;
 
         void* virt_base;
         size_t size;
 
-        struct mm_page_list* pages;
-        bool mapped;
+        struct vm_range_descriptor* allocated;
+        struct vm_range_descriptor* free;
+        struct vm_range_descriptor* mapped;
+
+        struct pte_range* pages;
+
+        char* name;
+
+        mutex_t lock;
+
         bool swappable;
         bool code;
 };
@@ -116,18 +131,28 @@ struct vm_descriptor {
         struct vm_segment* segments;
         unsigned int cpl;
         unsigned int pid;
+        char* name;
+
+        mutex_t lock;
 };
+
+extern struct vm_descriptor vm_core;
 
 int vm_segment_map(struct vm_segment* s, struct mm_page_descriptor* p);
 int vm_free(struct vm_descriptor* p);
+void* vm_get_phys(void* virt);
+void* x86_pte_get_phys(void* virt);
+int vm_init();
+void* vm_map_heap(void* phys, size_t size);
 
-void* pte_get_phys(void* virt);
+#ifdef VM_DBG
+int vm_dump(struct vm_descriptor*);
+struct vm_segment* vm_find_segment(char*);
+#endif
 
 #ifdef __cplusplus
 };
 #endif
-
-int vm_init();
 
 #endif
 

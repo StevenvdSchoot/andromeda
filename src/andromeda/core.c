@@ -26,6 +26,7 @@
 #include <networking/net.h>
 #include <andromeda/buffer.h>
 #include <mm/cache.h>
+#include <mm/vm.h>
 #include <stdio.h>
 
 #define RL_SHUTDOWN     0x0
@@ -129,6 +130,9 @@ void core_loop()
         mm_cache_test();
 #endif
 #endif
+#ifdef VM_DBG
+        vm_test();
+#endif
 #ifdef RR_EXP
         extern void task_testA();
         extern void task_testB();
@@ -141,7 +145,7 @@ void core_loop()
                 "phys: %X\n"
                 "virt: %X\n",
                 &core_loop,
-                pte_get_phys(core_loop),
+                x86_pte_get_phys(core_loop),
                 core_loop
         );
 #endif

@@ -30,11 +30,11 @@
  */
 
 /**
+ * \todo Create a segment(s) for kernel modules
  * \todo Use existing page tables to attach to these segments.
  * \todo Create userspace pte initialiser.
  * \todo Create kernelspace pte initialiser.
  * \todo Create vmem context switcher.
- * \todo Rebuild practically the entire memory subsystem.
  */
 
 #define STATIC_SEGMENTS 5
@@ -52,8 +52,8 @@
  * descriptors.
  *
  * 5 Segments are chosen as they cover the following fields: Code, Data, Stack,
- * Heap and Static pagetables. More segments may be allocated for kernel modules later on, however
- * these can be allocated dynamically.
+ * Heap and Static pagetables. More segments may be allocated for kernel modules
+ * later on, however these can be allocated dynamically.
  *
  * The reason these segments are not allocated dynamically, is because at the
  * moment of referencing, the dynamic allocators have not been initialised yet.
@@ -68,78 +68,7 @@
 struct vm_segment vm_core_segments[STATIC_SEGMENTS];
 struct vm_descriptor vm_core;
 
-/**
- * \fn pte_init
- * \brief Initialise the pte subsystem
- * \return standard error code
- *
- * This system should keep track of physical pages coupled to virtual ones
- * through memory segmentation. Every segment is 16 pages in size, and can not
- * overlap in physical memory.
- * These segments are allocated from the page allocator, in the case of the
- * physical pages. The pte system figures out where to put the data in virtual
- * memory itself.
- *
- * \todo Add kernel pages to segments
- * \todo Create virt page allocation
- * \todo Start work on userspace pte system
- */
-
-/* boot resides at address of first code segment */
-extern int boot;
-/* page_table_boot is at address of statically allocated pagetables */
-extern int page_table_boot;
-#if 0
-/**
- * \fn pte_map_kernel
- * \brief The function that maps the kernel into the segments
- */
-void
-vm_map_kernel()
-{
-        /* Get the initial pointers going */
-        addr_t start_ptr = (addr_t)&boot + THREE_GIB;
-        addr_t end_ptr = (addr_t)&end;
-        /* The start pointer isn't necessarily 4 Meg aligned */
-        start_ptr -= (start_ptr % VM_MEM_SIZE);
-
-        int i = 0;
-        for (; i < STATIC_SEGMENTS; i++)
-        {
-
-        }
-
-
-
-
-
-        /*
-         * Map the segments here
-         * Because we assume 4 MB alignment, the 1 MG region at the start of
-         * memor is also mapped. This region is marked as unallocatable in the
-         * page allocator, and there is no desire to get as much memory out of
-         * it as possible. Just don't use it.
-         * It is mapped, and if we have to interface it, use this.
-         */
-        int j = 0;
-        for (; start_ptr < end_ptr; start_ptr += VM_MEM_SIZE, j++)
-        {
-                /* Point the segment to the right pagetable */
-                struct vm_segment* s = &vm_core_segments[j];
-                s->pte = (void*)((addr_t)&page_table_boot + start_ptr);
-                s->mapped = true;
-
-#ifdef PA_DBG
-                printf("Mapping: %X\tidx: %X\n", (int)start_ptr, j);
-#endif
-        }
-#ifdef PA_DBG
-        panic("Testing!");
-#endif
-}
-#endif
-
-int
+static int
 vm_map_kernel_code(struct vm_segment* s)
 {
         if (s == NULL)
@@ -150,6 +79,7 @@ vm_map_kernel_code(struct vm_segment* s)
         s->virt_base = (void*)code_addr;
         s->size = code_end - code_addr;
         s->code = TRUE;
+        s->name = ".code";
 
 #ifdef PA_DBG
         printf( "Mapping kernel code\n\n"
@@ -163,10 +93,11 @@ vm_map_kernel_code(struct vm_segment* s)
         return -E_SUCCESS;
 }
 
-int vm_map_kernel_data(s, start, end)
+static int vm_map_kernel_data(s, start, end, name)
 struct vm_segment *s;
 void* start;
 void* end;
+char* name;
 {
         if (s == NULL || start == NULL || end == NULL)
                 return -E_NULL_PTR;
@@ -179,13 +110,16 @@ void* end;
         s->virt_base = start;
         s->size = (addr_t)end - (addr_t)start;
         s->code = FALSE;
+        s->name = name;
 
 #ifdef PA_DBG
         printf(
+                "name:     %s\n"
                 "segment:  %X\n"
                 "start:    %X\n"
                 "end:      %X\n"
                 "size:     %X\n",
+               s->name,
                (int)s,
                (int)start,
                (int)end,
@@ -196,10 +130,46 @@ void* end;
         return -E_SUCCESS;
 }
 
-int
+/**
+ * \fn vm_map_kernel_stack
+ * \brief Create a new region for the stack and move it over there
+ * The stack has been created at boot time, in a very strange, but easy to
+ * implement, location. Because the stack is at such an odd location it has to
+ * be moved. This move is to be made by this function.
+ * \param s
+ * \return A standard error code
+ */
+static int
 vm_map_kernel_stack(struct vm_segment* s)
 {
+        if (s == NULL)
+                return -E_NULL_PTR;
+
+        s->name = ".stack";
+        s->virt_base = NULL;
+        s->size = 0;
+
+        s->free = NULL;
+        s->allocated = NULL;
         return -E_NOFUNCTION;
+}
+
+static int
+vm_kernel_add_range(struct vm_segment* s)
+{
+        if (s == NULL)
+                return -E_NULL_PTR;
+
+        s->free = kalloc(sizeof(*s));
+        if (s->free == NULL)
+                return -E_NOMEM;
+
+        memset(s->free, 0, sizeof(*(s->free)));
+        s->free->base = s->virt_base;
+        s->free->size = s->size;
+        s->free->parent = s;
+
+        return -E_SUCCESS;
 }
 
 extern int page_dir_boot;
@@ -217,19 +187,28 @@ vm_init()
 
         /* Initialise all the segments! */
         int i = 0;
+        struct vm_segment* s = NULL;
         while (i < STATIC_SEGMENTS)
         {
                 /* nullify the segment and point to next element */
-                struct vm_segment* s = &vm_core_segments[i];
+                s = &vm_core_segments[i];
                 memset(s, 0, sizeof(*s));
-                s->next = &vm_core_segments[i++];
+                s->next = &vm_core_segments[++i];
+                s->parent = &vm_core;
         }
+        s->next = NULL;
         /* Map the segment into pte_core */
         vm_core.segments = vm_core_segments;
-        /* Set the privilage level */
+        /* Set the privilege level */
         vm_core.cpl = VM_CPL_CORE;
+        vm_core.name = "Andromeda";
 
         int ret = 0;
+
+        /* For the physical page allocator, let's keep everything aligned */
+        addr_t data_end = (addr_t)&end;
+        if (data_end % PAGE_ALLOC_FACTOR != 0)
+                data_end += PAGE_ALLOC_FACTOR - data_end % PAGE_ALLOC_FACTOR;
 
         /* Map the relevant pages starting with code*/
         ret |= vm_map_kernel_code(&vm_core_segments[0]);
@@ -241,15 +220,17 @@ vm_init()
         /* Map the page tables */
         ret |= vm_map_kernel_data(&vm_core_segments[1],
                         (void*)((int)(&page_dir_boot) + THREE_GIB),
-                        &initial_slab_space);
+                        &initial_slab_space, ".PD");
 
         /* Map the static data */
-        ret |= vm_map_kernel_data(&vm_core_segments[2], &rodata, &end);
+        ret |= vm_map_kernel_data(&vm_core_segments[2], &rodata,
+                        data_end, ".data");
 
         /* Map the heap */
         /** \todo Designate an area for the heap */
-        ret |= vm_map_kernel_data(&vm_core_segments[3], &end,
-                        ((addr_t)(&end)) + 0x1000000);
+        ret |= vm_map_kernel_data(&vm_core_segments[3], data_end,
+                        data_end + 0x1000000, ".heap");
+        ret |= vm_kernel_add_range(&vm_core_segments[3]);
 
         /*
          * Kernel modules and init file systems will have to be mapped once the
@@ -258,16 +239,21 @@ vm_init()
 
         if (ret != -E_SUCCESS)
 //                 panic("Memory could not correctly be mapped!");
-                printf("Virtual memory system was not initialised correctly!\n");
+                printf("Virtual memory system wasn't initialised correctly!\n");
 #ifdef PA_DBG
-        endProg();
+        //endProg();
 #endif
 
+        int idx = 0;
+        for (;idx < 0x40000000; idx += PAGESIZE)
+        {
+                x86_pte_unset_page(idx);
+        }
         /**
          * \todo Map in the kernel modules loaded in by GRUB.
          */
 
-        return -E_NOFUNCTION;
+        return ret;
 }
 
 /**

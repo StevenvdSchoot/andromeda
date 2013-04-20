@@ -17,14 +17,22 @@
  */
 
 #include <mm/page_alloc.h>
+#include <mm/paging.h>
 #include <mm/vm.h>
 #include <types.h>
 #include <andromeda/error.h>
-#include "paging.h"
+#include "page_table.h"
 
 /**
  * \AddToGroup paging
  * @{
+ *
+ * \todo Write segment setting.
+ * \todo Write segment disabling.
+ * \todo Write page table allocation code.
+ * This will probably just be a slab, mapped to physical addresses. Still it
+ * needs to be done.
+ * \todo Write a high level interface to call all this.
  */
 
 struct page_dir* pd = NULL;
@@ -49,10 +57,11 @@ int x86_pte_init()
         {
                 vpd[i] = (void*)vpt;
         }
+        memset(&pte_cnt, 0, sizeof(pte_cnt));
         return -E_SUCCESS;
 }
 
-void* pte_get_phys(void* virt)
+void* x86_pte_get_phys(void* virt)
 {
         addr_t v = (addr_t)virt >> 12;
         int pte = v & 0x3FF;
@@ -65,22 +74,31 @@ void* pte_get_phys(void* virt)
         ret += (addr_t)virt & 0xFFF;
 
         return (void*)ret;
+}
 
+int x86_pte_map(void* virt, void* phys, int cpl)
+{
+        return x86_pte_set_page(virt, phys, cpl);
 }
 
 int x86_pte_set_segment(struct vm_segment* s)
 {
-        if (s == NULL)
+        if (s == NULL || s->pages == NULL)
                 return -E_NULL_PTR;
 
-        return -E_NOFUNCTION;
+        x86_pte_set_range(s->pages);
+
+        return -E_SUCCESS;
 }
 
 int x86_pte_unset_segment(struct vm_segment* s)
 {
-        if (s == NULL)
+        if (s == NULL || s->pages == NULL)
                 return -E_NULL_PTR;
-        return -E_NOFUNCTION;
+
+        x86_pte_reset_range(s->pages);
+
+        return -E_SUCCESS;
 }
 
 /**

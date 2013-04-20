@@ -1,9 +1,9 @@
 #include ../../../scripts/makeIncl
 # compliler shizle
 AS=nasm
-ASFLAGS=-felf32 -I"../../../include/" $(FLAGS)
+ASFLAGS=-felf32 -I"../../../../include/" $(FLAGS)
 CC=gcc
-CCFLAGS=-I"../../../include/" -c -m32 -nostdlib -nodefaultlibs -fno-stack-protector \
+CCFLAGS=-I"../../../../include/" -c -m32 -nostdlib -nodefaultlibs -fno-stack-protector \
  -fno-builtin -nostdinc -finline-functions-called-once $(FLAGS)
 #CCFLAGS:=$(CFLAGS) -I"../../../include"
 LD=ld
@@ -37,21 +37,21 @@ ISR2_SRC=isr.c
 PIC_SRC=pic.c
 PIT_SRC=pit.c
 TASK_SRC=task.c
-KERNEL_DEPS=$(IDT) $(IDT2) $(IRQ) $(IRQ2) $(ISR) $(ISR2) $(PIC) $(PIT) $(APIC) \
-$(ACPI) $(CPU) $(SCHED) $(TIMER) $(CLOCK) $(TASK)
+KERNEL_DEPS=$(IDT) $(IDT2) $(IRQ) $(IRQ2) $(ISR) $(ISR2) $(PIC) $(PIT) \
+$(CPU) $(SCHED) $(TIMER) $(CLOCK) $(TASK)
 
 
 .PHONY: all $(APIC) $(ACPI) $(CPU)
 all: $(KERNEL_DEPS)
 	$(LD) $(LDFLAGS) $(KERNEL_DEPS) -o $(KERN)
 
-$(APIC):
-	$(MAKE) FLAGS="$(FLAGS)" -C apic/ all
-	mv -v apic/$(APIC) ./
+#$(APIC):
+#	$(MAKE) FLAGS="$(FLAGS)" -C apic/ all
+#	mv -v apic/$(APIC) ./
 
-$(ACPI):
-	$(MAKE) FLAGS="$(FLAGS)" -C acpi/ all
-	mv -v acpi/$(ACPI) ./
+#$(ACPI):
+#	$(MAKE) FLAGS="$(FLAGS)" -C acpi/ all
+#	mv -v acpi/$(ACPI) ./
 
 $(CPU):
 	$(MAKE) FLAGS="$(FLAGS)" -C cpu/ all

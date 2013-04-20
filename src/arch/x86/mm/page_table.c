@@ -9,44 +9,43 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include <mm/page_alloc.h>
 #include <mm/paging.h>
 #include <mm/vm.h>
 #include <types.h>
 #include <andromeda/error.h>
-#include "paging.h"
+#include "page_table.h"
 
 /**
  * \AddToGroup paging
  * @{
  */
 
-/**
- * \var pte_cnt
- * \brief reference count of the pages referended by a page table
- */
-static volatile int pte_cnt[1024];
+static volatile mutex_t pte_lock = mutex_unlocked;
 
 /**
- * \struct x86_pte_range
+ * \fn x86_cnt_pt_entries
+ * \param pte
+ * \return
  */
-struct x86_pte_range {
-        /**
-         * \var vtable
-         * \brief Copy of the page directory (virtual table addresses)
-         */
-        struct page_table* vtable[1024];
+static int
+x86_cnt_pt_entries(struct page_table* pte)
+{
+        mutex_lock(&pte_lock);
+        int cnt, i;
+        for (cnt = 0, i = 0; i < 0x400; i++)
+                cnt += pte[i].present;
 
-        int from;
-        int to;
-};
+        mutex_unlock(&pte_lock);
+
+        return cnt;
+}
 
 /**
  * \fn x86_pte_set_page
@@ -90,7 +89,7 @@ static int x86_pte_unset(struct page_table* pte)
  * \param idx
  * \brief The index to put the entry.
  */
-static int x86_pte_set_pt(struct page_table** pt, int idx)
+static int x86_pte_set_pt(struct page_table* pt, int idx)
 {
         if (idx >= 1024 || pt == NULL)
                 return -E_INVALID_ARG;
@@ -112,25 +111,42 @@ static int x86_pte_unset_pt(int idx)
         if (idx >= 1024)
                 return -E_INVALID_ARG;
 
+        /* find the entry and mark in not present */
         spd[idx].present = 0;
         return -E_SUCCESS;
 }
 
-int x86_pte_copy_range(struct x86_pte_range* range, int from, int to)
+/**
+ * \fn x86_pte_copy_range
+ * \brief Copy a set of page table pointers into a range descriptor
+ * \param range
+ * \param from
+ * \param to
+ * \return standard error code
+ */
+int x86_pte_copy_range(struct pte_range* range, int from, int to)
 {
         if (range == NULL)
                 return -E_NULL_PTR;
 
+        /* Configure the pointers */
         range->to = to;
         range->from = from;
 
+        /* Copy the tables over from the vpd to the range descriptor */
         for (; from < to; from ++)
                 range->vtable[from] = vpd[from];
 
         return -E_SUCCESS;
 }
 
-int x86_pte_set_range(struct x86_pte_range* range)
+/**
+ * \fn x86_pte_set_range
+ * \brief Copy the page tables in the range to the page directory
+ * \param range
+ * \return Standard error code
+ */
+int x86_pte_set_range(struct pte_range* range)
 {
         if (range == NULL)
                 return -E_NULL_PTR;
@@ -144,7 +160,13 @@ int x86_pte_set_range(struct x86_pte_range* range)
         return -E_SUCCESS;
 }
 
-int x86_pte_reset_range(struct x86_pte_range* range)
+/**
+ * \fn x86_pte_reset_range
+ * \brief Set all pages within this range to unavailable
+ * \param range
+ * \return
+ */
+int x86_pte_reset_range(struct pte_range* range)
 {
         if (range == NULL)
                 return -E_NULL_PTR;
@@ -156,6 +178,14 @@ int x86_pte_reset_range(struct x86_pte_range* range)
         return -E_SUCCESS;
 }
 
+/**
+ * \fn x86_pte_set_page
+ * \brief Map a virtual address to a physical one
+ * \param virt
+ * \param phys
+ * \param cpl
+ * \return A standard error code
+ */
 int x86_pte_set_page(void* virt, void* phys, int cpl)
 {
         if (virt == NULL || phys == NULL ||(((int)virt|(int)phys) & 0xFFF) != 0)
@@ -166,7 +196,8 @@ int x86_pte_set_page(void* virt, void* phys, int cpl)
         int pte = v & 0x3FF;
         int pde = (v >> 10) & 0x3FF;
 
-        struct page_table** pt;
+        struct page_table* pt;
+        mutex_lock(&pte_lock);
         if ((pt = vpd[pde]) == NULL)
         {
                 /**
@@ -176,15 +207,19 @@ int x86_pte_set_page(void* virt, void* phys, int cpl)
                 panic("Page table allocaton not yet written");
                 x86_pte_set_pt(pt, pde);
         }
-        x86_pte_set(phys, cpl, pt[pte]);
-        asm ("cli"); // Why do I have a feeling this breaks on a multi cpu system
-        if (++pte_cnt[pde] >= 1024)
-                panic("Page tables initialised too often!");
-        asm ("sti");
+        x86_pte_set(phys, cpl, &pt[pte]);
+
+        mutex_unlock(&pte_lock);
 
         return -E_NOFUNCTION;
 }
 
+/**
+ * \fn x86_pte_unset_page
+ * \brief Disable access to this one virtual address
+ * \param virt
+ * \return A standard error code
+ */
 int x86_pte_unset_page(void* virt)
 {
         if (virt == NULL && ((addr_t)virt & 0xFFF) != 0)
@@ -194,16 +229,28 @@ int x86_pte_unset_page(void* virt)
         int pte = v & 0x3FF;
         int pde = (v >> 10) & 0x3FF;
 
-        struct page_table** pt;
+        mutex_lock(&pte_lock);
+        struct page_table* pt;
         if ((pt = vpd[pde]) == NULL)
+        {
+                mutex_unlock(&pte_lock);
                 return -E_SUCCESS;
+        }
 
-        asm ("cli"); // This breaks too ...
-        if (--pte_cnt[pde] == 0)
+        int ret = x86_pte_unset(&pt[pte]);
+        if (x86_cnt_pt_entries(pt) <= 0)
                 x86_pte_unset_pt(pde);
-        asm ("sti");
 
-        return x86_pte_unset(pt[pte]);
+        mutex_unlock(&pte_lock);
+
+        return ret;
+}
+
+void
+x86_pagefault(isrVal_t registers)
+{
+        panic("The new pagefaults haven't yet been implemented!");
+        return;
 }
 
 /**
