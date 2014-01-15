@@ -16,12 +16,13 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <defines.h>
 #include <unistd.h>
 #include <andromeda/elf.h>
 
 extern void asmRun(void*);
 
-int exec(char* path)
+int exec(UNUSED char* path)
 {
 	panic("Aieee! File system not implemented!");
 	return 0;

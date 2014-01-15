@@ -81,7 +81,7 @@ void* page_realloc(void* ptr)
 
         mutex_lock(&page_alloc_lock);
 
-        if (pagemap[idx] >= 0 || pagemap[idx] == PAGE_LIST_MARKED)
+        if (pagemap[idx] >= 0 || pagemap[idx] == (long)PAGE_LIST_MARKED)
                 goto err;
 
         pagemap[idx]--;

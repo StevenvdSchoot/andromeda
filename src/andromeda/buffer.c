@@ -383,7 +383,7 @@ buffer_seek(struct vfile* this, int64_t offset, seek_t from)
         case SEEK_CUR:
                 if (offset <= 0)
                 {
-                        if (-offset > this->cursor - buf->base_idx)
+                        if ( (uint64_t)(-offset) > this->cursor - buf->base_idx)
                         {
                                 this->cursor = buf->base_idx;
                         }
@@ -394,7 +394,7 @@ buffer_seek(struct vfile* this, int64_t offset, seek_t from)
                 }
                 else
                 {
-                        if (offset > buf->size - this->cursor)
+                        if ( (uint64_t)offset > buf->size - this->cursor)
                         {
                                 this->cursor = buf->size;
                         }

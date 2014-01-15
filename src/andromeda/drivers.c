@@ -23,8 +23,8 @@
 #include <fs/vfs.h>
 
 
-static int drv_setup_io(struct device *dev, struct driver *drv,
-                        struct vfile *io, vfs_read_hook_t, vfs_write_hook_t);
+static int drv_setup_io(struct driver *drv, struct vfile *io,
+                        vfs_read_hook_t, vfs_write_hook_t);
 
 struct device dev_root;
 uint64_t dev_id = 0;
@@ -34,7 +34,7 @@ uint64_t virt_bus = 0;
 uint64_t lgcy_bus = 0;
 
 /** Return the number of detected CPU's */
-int dev_detect_cpus(struct device* root)
+int dev_detect_cpus(UNUSED struct device* root)
 {
         return -E_NOFUNCTION;
 }
@@ -173,8 +173,7 @@ int device_id_alloc(struct device* dev)
 }
 
 static int
-drv_setup_io(dev, drv, io, read, write)
-struct device *dev;
+drv_setup_io(drv, io, read, write)
 struct driver *drv;
 struct vfile *io;
 vfs_read_hook_t read;
@@ -197,7 +196,7 @@ dev_setup_driver(struct device *dev, vfs_read_hook_t read, vfs_write_hook_t writ
         struct vfile *file = kmalloc(sizeof(*file));
         dev->children = NULL;
         dev->parent = NULL;
-        drv_setup_io(dev,drv,file,read,write);
+        drv_setup_io(drv,file,read,write);
         dev->driver = drv;
 
         drv->driver_lock = 0;

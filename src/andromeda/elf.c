@@ -125,14 +125,14 @@ int coreCheck(void* image)
 	for (thisHeader = programHeader; i < noHdrs; i++)
 	{
 	Elf32_Phdr* hdr = (Elf32_Phdr*)thisHeader;
-	if (*(int*)(hdr->p_offset+(unsigned int) image) == 0xC0DEBABE)
+	if (*(unsigned int*)(hdr->p_offset+(unsigned int) image) == 0xC0DEBABE)
 		return 0;
 	thisHeader+=hdrSize;
 	}
 	return 3;
 }
 
-void elfJmp(void* image)
+void elfJmp(UNUSED void* image)
 {
 //         Elf32_Ehdr *elfHeader = (Elf32_Ehdr*) image;
 //         void* addr = (void*)(elfHeader->e_entry);
