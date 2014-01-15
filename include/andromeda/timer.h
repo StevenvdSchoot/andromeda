@@ -26,8 +26,8 @@
 #ifndef __KERN_TIMER_H
 #define __KERN_TIMER_H
 
-#define _TIME_FREQ_MAX 0xFFFFFFFF
-#define _TIME_FREQ_MIN 0x0
+#define _TIME_FREQ_MAX ((unsigned int)0xFFFFFFFF)
+#define _TIME_FREQ_MIN ((unsigned int)0x0)
 
 #ifdef __cplusplus
 extern "C" {
@@ -168,7 +168,7 @@ get_timer_frq(TIMER *timer)
 }
 
 void setupTimer(unsigned int freq, void* scheduler, void* hwInit);
-void setTimerFrequency(int);
+void setTimerFrequency(unsigned int frequency);
 extern struct __kern_timer *timer;
 
 #ifdef __cplusplus
