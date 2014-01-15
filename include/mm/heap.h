@@ -22,7 +22,6 @@
 
 #ifndef __HEAP_H
 #define __HEAP_H
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -42,24 +41,26 @@ typedef struct memNode memory_node_t;
 
 // void heapAddBlocks(void*, int);
 
-void* alloc(size_t, boolean);
+#ifdef SLOB
+void* alloc(size_t, uint16_t);
 void* nalloc(size_t);
-int free(void*);
+void free(void*, size_t);
 
 int initHdr(volatile memory_node_t*, size_t);
 void heapStub();
 void heap_add_blocks(void* base, uint32_t size);
-void* boot_alloc(size_t size);
 #define examineHeap examine_heap
 #define ol_dbg_heap examine_heap
 void examine_heap();
+#endif
 
-#define kalloc(size) alloc(size, FALSE)
-#define kfree(ptr)   free(ptr)
+#if 0
 #define knalloc(size) nalloc(size)
 #define kzalloc(size) knalloc(size)
+#endif
 
 // Alloc_max = 1 MB
+#define THREE_GIB 0xC0000000
 #define HEAPSIZE (0xf*0x100000)-((uint32_t)(&end) - THREE_GIB)
 #define ALLOC_MAX HEAPSIZE
 
@@ -80,7 +81,6 @@ extern boolean freeable_allocator;
 #ifdef __cplusplus
 }
 #endif
-
 #endif
 
 /** \file */

@@ -31,7 +31,11 @@
 #include <sys/dev/ps2.h>
 #include <sys/dev/pci.h>
 
+#include <andromeda/system.h>
 
+#ifndef __PIE__
+#error "The x86 kernel module should be compiled position independently!"
+#endif
 
 uint64_t pit_timer = 0;
 uint64_t sleepTime = 0;
@@ -200,7 +204,7 @@ setup_irq_data(void)
     struct irq_data *data = get_irq_data(i);
     data->irq_base = get_isa_irq_vector(i);
     data->irq = i;
-    data->irq_config = kalloc(sizeof(struct irq_cfg));
+    data->irq_config = kmalloc(sizeof(struct irq_cfg));
     data->irq_config->vector = (uint16_t)vector;
     install_irq_vector(data);
   }
@@ -216,7 +220,7 @@ setup_irq_cfg(int irq)
 {
   struct irq_data *data = get_irq_data(irq);
   if(data->irq_config == NULL)
-    data->irq_config = kalloc(sizeof(*(data->irq_config)));
+    data->irq_config = kmalloc(sizeof(*(data->irq_config)));
 
   struct irq_cfg *cfg = data->irq_config;
   cfg->trigger = 0;
@@ -254,16 +258,11 @@ free_irq_entry(struct irq_data* irq)
     return -1;
   else
   {
-    int ret = free(irq->irq_config);
-    if(ret != 0)
-      return ret;
-    else
-    {
-      uint32_t irqnum = irq->irq;
-      memset((void*)irq, 0, sizeof(*irq));
-      irq->irq = irqnum;
-    }
-    return ret;
+    kfree(irq->irq_config);
+    uint32_t irqnum = irq->irq;
+    memset((void*)irq, 0, sizeof(*irq));
+    irq->irq = irqnum;
+    return -E_SUCCESS;
   }
   return -1;
 }
@@ -273,7 +272,7 @@ setup_irq_handler(unsigned int irq)
 {
   struct irq_data *idata = get_irq_data(irq);
   unsigned int stub_size = get_general_irqstub_size();
-  void *stub = kalloc(stub_size);
+  void *stub = kmalloc(stub_size);
   memcpy(stub, gen_irq_stub, stub_size);
 
   /*

@@ -1,0 +1,11 @@
+{
+"name" : "arch-x86-kernel",
+"link" : false,
+"archive" : false,
+"source-files" : ["clock.c", "idt.c", "irq.c", "isr.c", "pic.c", "pit.c", "task.c", "timer.c"],
+"compiler-flags" : "",
+"mcompiler-flags" : "-fPIE",
+"linker-flags" : "",
+"archiver-flags" : "",
+"depend" : [{"path" : "cpu/cpu.build"}]
+}

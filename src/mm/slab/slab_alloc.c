@@ -20,7 +20,6 @@
 #include <stdlib.h>
 #include <andromeda/core.h>
 
-#ifdef SLAB
 #ifdef SLAB_DBG
 struct mm_cache* last_cache = NULL;
 #endif
@@ -504,6 +503,8 @@ found:
 void
 kmem_free(void* ptr, size_t size)
 {
+        if (size == 0 || ptr == NULL)
+                panic("Invalid object in kmem_free!");
         struct mm_cache* candidate = kmem_find_size(caches, size);
 
         if (candidate == NULL)
@@ -742,5 +743,3 @@ mm_cache_test()
  * @}
  *\file
  */
-
-#endif

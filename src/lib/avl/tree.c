@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <lib/tree.h>
+#include <andromeda/system.h>
 
 /**
  * \addtogroup tree
@@ -528,7 +529,7 @@ success:
 static struct tree* tree_new_node(int key, void* data, struct tree_root* root)
 {
         /* Create new tree */
-        struct tree* t = kalloc(sizeof(*t));
+        struct tree* t = kmalloc(sizeof(*t));
         if (t == NULL)
                 return NULL;
         memset(t, 0, sizeof(*t));
@@ -567,7 +568,7 @@ tree_flush_node(struct tree* tree, int (*dtor)(void*, void*), void* dtor_arg)
         printf("Flushing %X\n", tree->key);
         memset(tree, 0, sizeof(*tree));
 
-        free(tree);
+        kfree(tree);
         return -E_SUCCESS;
 }
 
@@ -585,7 +586,7 @@ int tree_flush(struct tree_root* root, int (dtor)(void*,void*), void* dtor_arg)
         mutex_unlock(&root->mutex);
 
         memset(root, 0, sizeof(*root));
-        free(root);
+        kfree(root);
         return -E_SUCCESS;
 }
 
@@ -627,7 +628,7 @@ static int tree_delete(int key, struct tree_root* root)
 struct tree_root* tree_new_avl()
 {
         /* Create the new tree */
-        struct tree_root* t = kalloc(sizeof(*t));
+        struct tree_root* t = kmalloc(sizeof(*t));
         if (t != NULL)
                 memset(t, 0, sizeof(*t));
 

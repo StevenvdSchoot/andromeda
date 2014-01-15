@@ -65,6 +65,7 @@
 #include <andromeda/elf.h>
 #include <andromeda/drivers.h>
 #include <andromeda/error.h>
+#include <andromeda/system.h>
 #include <mm/page_alloc.h>
 
 #include <lib/byteorder.h>
@@ -116,15 +117,13 @@ boolean setupCore(module_t mod)
 int init(unsigned long magic, multiboot_info_t* hdr)
 {
         setGDT();
-        init_heap();
-#ifdef SLAB
-        slab_alloc_init();
-#endif
+        sys_setup_alloc();
+
         textInit();
         /**
          * \todo Make complement_heap so that it allocates memory from pte
          */
-        complement_heap(&end, HEAPSIZE);
+        /* complement_heap(&end, HEAPSIZE); */
         addr_t tmp = (addr_t)hdr + THREE_GIB;
         hdr = (multiboot_info_t*)tmp;
 
@@ -146,8 +145,7 @@ int init(unsigned long magic, multiboot_info_t* hdr)
         mmap = (multiboot_memory_map_t*) hdr->mmap_addr;
 
         /** Build the memory map and allow for allocation */
-        x86_pte_init();
-        page_alloc_init(mmap, (unsigned int)hdr->mmap_length);
+        sys_setup_paging(mmap, (unsigned int)hdr->mmap_length);
         vm_init();
 #ifdef PA_DBG
 //         endProg();
@@ -178,7 +176,7 @@ int init(unsigned long magic, multiboot_info_t* hdr)
         debug("Size of the heap: 0x%x\tStarting at: %x\n", HEAPSIZE, heap);
 
         //acpi_init();
-        ol_cpu_t cpu = kalloc(sizeof (*cpu));
+        ol_cpu_t cpu = kmalloc(sizeof (*cpu));
         if (cpu == NULL)
                 panic("OUT OF MEMORY!");
         ol_cpu_init(cpu);

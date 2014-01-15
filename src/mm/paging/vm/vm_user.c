@@ -1,6 +1,6 @@
 /*
  * Andromeda
- * Copyright (C) 2012  Bart Kuivenhoven
+ * Copyright (C) 2012 - 2013  Bart Kuivenhoven
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
  */
 
 #include <andromeda/error.h>
+#include <andromeda/system.h>
 #include <defines.h>
 #include <mm/vm.h>
 #include <mm/page_alloc.h>
@@ -39,7 +40,7 @@
 struct vm_descriptor*
 vm_new(unsigned int pid)
 {
-        struct vm_descriptor* p = kalloc(sizeof(*p));
+        struct vm_descriptor* p = kmalloc(sizeof(*p));
         if (p == NULL)
                 return NULL;
 
@@ -63,7 +64,7 @@ vm_new(unsigned int pid)
 struct vm_segment*
 vm_new_segment(void* virt, size_t size, struct vm_descriptor* p)
 {
-        struct vm_segment* s = kalloc(sizeof(*s));
+        struct vm_segment* s = kmalloc(sizeof(*s));
         if (s == NULL)
                 return NULL;
 
@@ -80,7 +81,7 @@ vm_new_segment(void* virt, size_t size, struct vm_descriptor* p)
 
         /* Add allocation data in here */
         s->allocated = NULL;
-        s->free = kalloc(sizeof(*s->free));
+        s->free = kmalloc(sizeof(*s->free));
         if (s->free == NULL)
                 goto err;
         memset(s->free, 0, sizeof(*s->free));
@@ -191,7 +192,7 @@ err:
 }
 
 /**
- * \fn vm_segment_map
+ * \fn vm_segment_load
  * \brief Map a physical location into a segment
  * \param s
  * \brief The segment to map into
@@ -200,11 +201,17 @@ err:
  * \return A standard error code
  */
 int
-vm_segment_map(struct vm_segment* s, struct mm_page_descriptor* p)
+vm_segment_load(struct vm_segment* s, struct mm_page_descriptor* p)
 {
         /**
          * \TODO: If pte_descriptor == loaded, map segment into page directory
          */
+        return -E_NOFUNCTION;
+}
+
+int
+vm_segment_unload(struct vm_segment* s, struct mm_page_descriptor* p)
+{
         return -E_NOFUNCTION;
 }
 

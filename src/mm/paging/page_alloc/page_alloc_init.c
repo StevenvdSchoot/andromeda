@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <andromeda/error.h>
+#include <andromeda/system.h>
 #include <mm/page_alloc.h>
 #include <boot/mboot.h>
 #include <mm/paging.h>
@@ -42,23 +43,25 @@ int mboot_parse(multiboot_memory_map_t* map, int map_size)
         /* Pointer to the mboot list entry */
         multiboot_memory_map_t* mmap = map;
 
+	int i = 0;
         /* While not outside of the mboot list */
         while((addr_t)mmap < (addr_t)map + map_size)
         {
+		i++;
 #ifdef PA_DBG
-                printf( "Entry:\taddr: %X\n"
-                        "\tsize: %X\n"
-                        "\ttype: %X\n",
+                printf( "Entry: %i\taddr: %X.%X\tsize: %X\ttype: %X\n",
+			(int)i,
+			(int)(mmap->addr >> 32),
                         (int)mmap->addr,
                         (int)mmap->len,
                         (int)mmap->type
                 );
 #endif
-                if (mmap->type != MULTIBOOT_MEMORY_AVAILABLE)
+                if (mmap->type != MULTIBOOT_MEMORY_AVAILABLE || (mmap->addr >> 32) != 0)
                         goto itteration_skip;
 
 #ifdef PA_DBG
-                printf("\tWe get to do something now!\n");
+                printf("\tFree memory range\n");
 #endif
                 /* Parse each entry here */
                 if (mmap->addr < SIZE_MEG && mmap->addr + mmap->size > SIZE_MEG)
@@ -71,7 +74,7 @@ int mboot_parse(multiboot_memory_map_t* map, int map_size)
                 if (mmap->addr >= SIZE_MEG)
                 {
                         addr_t ptr = mmap->addr;
-                        for (; ptr < mmap->addr + mmap->len;
+                        for (; ptr < mmap->addr + mmap->len && ptr < (addr_t)-1;
                                 ptr += PAGE_ALLOC_FACTOR)
                         {
                                 page_unmark((void*)ptr);
@@ -129,6 +132,7 @@ int page_alloc_init(multiboot_memory_map_t* map, int map_size)
         if (mboot_parse(map, map_size) != -E_SUCCESS)
                 panic("Memory corruption in page_alloc_init");
 
+
         if (page_alloc_mark_kernel() != -E_SUCCESS)
                 panic("Something went wrong in mapping kernel");
 
@@ -137,6 +141,18 @@ int page_alloc_init(multiboot_memory_map_t* map, int map_size)
          */
 
         return -E_NOFUNCTION;
+}
+
+int page_alloc_register()
+{
+        if (core.mm == NULL)
+                return -E_ALREADY_INITIALISED;
+
+        core.mm->page_alloc = page_alloc;
+        core.mm->page_share = page_realloc;
+        core.mm->page_free = page_free;
+
+        return -E_SUCCESS;
 }
 
 /**

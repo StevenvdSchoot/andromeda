@@ -20,6 +20,7 @@
 #include <mm/heap.h>
 #include <sys/dev/ps2.h>
 #include <sys/io.h>
+#include <andromeda/system.h>
 
 #include <text.h>
 
@@ -118,8 +119,8 @@ ol_ps2_write(ol_ps2_dev_t dev, uint8_t val, bool ack)
 int
 ol_ps2_init_keyboard()
 {
-  ol_ps2_keyboard = kalloc(sizeof(struct ol_ps2_dev));
-  ol_ps2_controller = kalloc(sizeof(struct ol_ps2_dev));
+  ol_ps2_keyboard = kmalloc(sizeof(struct ol_ps2_dev));
+  ol_ps2_controller = kmalloc(sizeof(struct ol_ps2_dev));
   if ((!ol_ps2_init_dev(ol_ps2_keyboard, OL_PS2_KEYBOARD))
       && (!ol_ps2_init_dev(ol_ps2_controller, OL_PS2_CONTROLLER)))
   {
@@ -134,16 +135,16 @@ ol_detach_all_devices()
   if ((ol_ps2_keyboard->flags & OL_PS2_ACTIVE_FLAG) != 0
       && (ol_ps2_keyboard != NULL))
   {
-    free(ol_ps2_keyboard);
+    kfree(ol_ps2_keyboard);
   }
   if ((ol_ps2_mouse->flags & OL_PS2_ACTIVE_FLAG) != 0 && (ol_ps2_mouse != NULL))
   {
-    free(ol_ps2_mouse);
+    kfree(ol_ps2_mouse);
   }
   if ((ol_ps2_controller->flags & OL_PS2_ACTIVE_FLAG) != 0
       && (ol_ps2_controller != NULL))
   {
-    free(ol_ps2_controller);
+    kfree(ol_ps2_controller);
   }
 }
 

@@ -21,6 +21,7 @@
 #include <andromeda/timer.h>
 #include <andromeda/timer/virtual.h>
 #include <andromeda/timer.h>
+#include <andromeda/system.h>
 
 static struct virtual_timer head;
 
@@ -54,7 +55,7 @@ int destroy_virt_timer(struct virtual_timer* timer)
                 timer->previous->next = timer->next;
                 if(timer->next)
                         timer->next->previous = timer->previous;
-                free(timer);
+                kfree(timer);
         }
         else if(timer == get_virtual_timer_head())
         {
@@ -83,9 +84,10 @@ static int virt_register_timer(VIRT_TIMER *timer)
 int
 create_virtual_timer(unsigned int frequency, TIMER *hw, timer_tick_t handle)
 {
-        VIRT_TIMER *timer = kzalloc(sizeof(*timer));
+        VIRT_TIMER *timer = kmalloc(sizeof(*timer));
         if(NULL == timer)
                 return -E_NULL_PTR;
+        memset(timer, 0, sizeof(*timer));
         timer->frq = frequency;
         timer->hwtimer = hw;
         timer->handle = handle;

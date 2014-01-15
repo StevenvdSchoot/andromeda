@@ -1,6 +1,6 @@
 /*
  * Andromeda
- * Copyright (C) 2012  Bart Kuivenhoven
+ * Copyright (C) 2012 - 2013  Bart Kuivenhoven
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
  */
 
 #include <andromeda/error.h>
+#include <andromeda/system.h>
 #include <defines.h>
 #include <mm/vm.h>
 #include <mm/page_alloc.h>
@@ -181,7 +182,8 @@ struct vm_range_descriptor* range;
         else
                 range->parent->allocated = range->next;
 
-        return kfree(range);
+        kfree(range);
+        return -E_SUCCESS;
 }
 
 static int
@@ -281,7 +283,7 @@ vm_range_split(struct vm_range_descriptor* src, size_t size)
                 return -E_SUCCESS;
 
         /* Create a new descritor to keep track of the other bit of memory */
-        struct vm_range_descriptor* tmp = kalloc(sizeof(*tmp));
+        struct vm_range_descriptor* tmp = kmalloc(sizeof(*tmp));
         if (tmp == NULL)
                 return -E_NULL_PTR;
 
@@ -401,7 +403,7 @@ void* vm_map(void* virt, void* phys, struct vm_segment* s)
         int i = 0;
         for(; i < cnt; i += PAGE_ALLOC_FACTOR)
         {
-                if (page_claim(p + i) == NULL)
+                if (page_claim((void*)(p + i)) == NULL)
                         goto gofixit;
                 x86_pte_map(v + i, p + i, 0);
         }

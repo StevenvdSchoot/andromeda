@@ -20,8 +20,9 @@
 #include <stdlib.h>
 #include <mm/cache.h>
 #include <mm/page_alloc.h>
+#include <mm/vm.h>
+#include <andromeda/system.h>
 
-#ifdef SLAB
 
 /**
  * \AddToGroup slab
@@ -260,17 +261,17 @@ cache_find_slab_space(struct mm_cache* cache, idx_t slab_idx)
  */
 int slab_alloc_init()
 {
-        textInit();
 #ifdef SLAB_DBG
         debug("Initial slab ptr: %X\n", &initial_slab_space);
 #endif
         caches = initial_caches;
         int idx = 0;
         init_slab_ptr = &initial_slab_space;
+        int alignment = 4;
         /** Configure the first caches, one by one */
         for (; idx < NO_STD_CACHES; idx++)
         {
-                int alignment = pow(2, idx+4);
+                alignment += alignment;
                 /** Memset first, then set some pointers */
                 memset(&caches[idx], 0, sizeof(*caches));
                 caches[idx].obj_size = alignment;
@@ -289,7 +290,6 @@ int slab_alloc_init()
                 debug("Object size of cache[%X] = %X\n", idx,
                                                           caches[idx].obj_size);
 #endif
-
                 cache_find_slab_space(&caches[idx], idx);
         }
 #ifdef SLAB_DBG
@@ -297,7 +297,18 @@ int slab_alloc_init()
         debug("Address of higherhalf: %X\n", &higherhalf);
 //         for (;;);
 #endif
-        return -E_NOFUNCTION;
+        return -E_SUCCESS;
+}
+
+int slab_sys_register()
+{
+        if (core.mm == NULL)
+                return -E_NOT_YET_INITIALISED;
+
+        core.mm->alloc = kmem_alloc;
+        core.mm->free = kmem_free;
+
+        return -E_SUCCESS;
 }
 
 static mutex_t cache_lock = mutex_unlocked;
@@ -333,7 +344,7 @@ cinit dtor;
 
         for (; cariage->next != NULL; cariage = cariage->next);
 
-        cariage->next = kalloc(sizeof(*cariage->next));
+        cariage->next = kmalloc(sizeof(*cariage->next));
         if (cariage->next == NULL)
                 goto err_nomem;
         cariage = cariage->next;
@@ -363,7 +374,7 @@ size_t alignment;
 {
         if (cache == NULL || obj_size == 0 || no_objects == 0 || alignment == 0)
                 goto err;
-        struct mm_slab* slab = kalloc(sizeof(*slab));
+        struct mm_slab* slab = kmalloc(sizeof(*slab));
         if (slab == NULL)
                 goto err;
 
@@ -398,5 +409,3 @@ err:
  * @}
  *\file
  */
-
-#endif

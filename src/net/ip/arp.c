@@ -29,10 +29,10 @@ alloc_arp_structure(struct arp *arp)
   if(arp == NULL)
     return NULL;
 
-  arp->src_hw = kalloc(sizeof(uint8_t)*arp->hlength);
-  arp->src_pr = kalloc(sizeof(uint8_t)*arp->plength);
-  arp->dst_hw = kalloc(sizeof(uint8_t)*arp->hlength);
-  arp->dst_pr = kalloc(sizeof(uint8_t)*arp->plength);
+  arp->src_hw = kmalloc(sizeof(uint8_t)*arp->hlength);
+  arp->src_pr = kmalloc(sizeof(uint8_t)*arp->plength);
+  arp->dst_hw = kmalloc(sizeof(uint8_t)*arp->hlength);
+  arp->dst_pr = kmalloc(sizeof(uint8_t)*arp->plength);
   return arp;
 }
 
@@ -47,9 +47,9 @@ free_arp_structure(struct arp *arp)
   if(arp == NULL)
     return;
 
-  free(arp->src_hw);
-  free(arp->src_pr);
-  free(arp->dst_hw);
-  free(arp->dst_pr);
-  free(arp);
+  kfree(arp->src_hw);
+  kfree(arp->src_pr);
+  kfree(arp->dst_hw);
+  kfree(arp->dst_pr);
+  kfree(arp);
 }

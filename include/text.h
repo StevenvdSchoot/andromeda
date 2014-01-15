@@ -38,15 +38,15 @@ void textInit();
 int atoi(char* str);
 
 #ifdef MSG_DBG
-#define debug printf
+#define debug(...) printf(__VA_ARGS__)
 #else
-#define debug
+#define debug(...)
 #endif
 
 #ifdef WARN
 #define warning(a) printf("WARNING! " a)
 #else
-#define warning
+#define warning(a)
 #endif
 
 #ifdef __cplusplus

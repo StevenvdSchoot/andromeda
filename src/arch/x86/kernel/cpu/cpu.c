@@ -18,6 +18,7 @@
 
 #include <stdlib.h>
 #include <arch/x86/cpu.h>
+#include <andromeda/system.h>
 
 #include <mm/heap.h>
 #include <mm/memory.h>
@@ -59,13 +60,13 @@ ol_cpuid_available(ol_cpu_t cpu)
 ol_gen_registers_t
 ol_cpuid(uint32_t func)
 {
-  ol_gen_registers_t regs = kalloc(sizeof (*regs));
+  ol_gen_registers_t regs = kmalloc(sizeof (*regs));
   regs->eax = func;
   regs->ecx = 0;
   regs->edx = 0;
   regs->ebx = 0;
   ol_gen_registers_t ret = (ol_gen_registers_t)__ol_cpuid(regs);
-  free(regs);
+  kfree(regs);
   return ret;
 }
 
