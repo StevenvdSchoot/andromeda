@@ -81,7 +81,7 @@ int
 ol_apic_init(ol_cpu_t cpu)
 {
   if(ol_detect_apic(cpu))
-    goto fail;
+    return -1;
 
   addr_t apic_addr = correct_apic_address(cpu_read_msr(0x1b), cpu);
   page_map_kernel_entry(apic_addr, apic_addr);
@@ -123,8 +123,6 @@ ol_apic_init(ol_cpu_t cpu)
 #endif
 
   return 0;
-  fail:
-    return -1;
 }
 
 static uint64_t

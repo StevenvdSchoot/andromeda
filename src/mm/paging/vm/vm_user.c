@@ -82,8 +82,13 @@ vm_new_segment(void* virt, size_t size, struct vm_descriptor* p)
         /* Add allocation data in here */
         s->allocated = NULL;
         s->free = kmalloc(sizeof(*s->free));
+				
         if (s->free == NULL)
-                goto err;
+        {
+                kfree(s);
+                return NULL;
+        }
+        
         memset(s->free, 0, sizeof(*s->free));
         s->free->base = s->virt_base;
         s->free->size = s->size;
@@ -104,9 +109,6 @@ vm_new_segment(void* virt, size_t size, struct vm_descriptor* p)
         mutex_unlock(&p->lock);
 
         return s;
-err:
-        kfree(s);
-        return NULL;
 }
 
 

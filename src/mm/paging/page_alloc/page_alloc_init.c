@@ -58,31 +58,32 @@ int mboot_parse(multiboot_memory_map_t* map, int map_size)
                 );
 #endif
                 if (mmap->type != MULTIBOOT_MEMORY_AVAILABLE || (mmap->addr >> 32) != 0)
-                        goto itteration_skip;
-
-#ifdef PA_DBG
-                printf("\tFree memory range\n");
-#endif
-                /* Parse each entry here */
-                if (mmap->addr < SIZE_MEG && mmap->addr + mmap->size > SIZE_MEG)
                 {
-                        addr_t ptr = SIZE_MEG;
-                        size_t size = mmap->len - (SIZE_MEG - mmap->addr);
-                        for (; ptr < mmap->addr+size; ptr += PAGE_ALLOC_FACTOR)
-                                page_unmark((void*)ptr);
+                        mmap = (void*)((addr_t)mmap + mmap->size+sizeof(mmap->size));
                 }
-                if (mmap->addr >= SIZE_MEG)
+                else
                 {
-                        addr_t ptr = mmap->addr;
-                        for (; ptr < mmap->addr + mmap->len && ptr < (addr_t)-1;
-                                ptr += PAGE_ALLOC_FACTOR)
+#ifdef PA_DBG
+                        printf("\tFree memory range\n");
+#endif
+                        /* Parse each entry here */
+                        if (mmap->addr < SIZE_MEG && mmap->addr + mmap->size > SIZE_MEG)
                         {
-                                page_unmark((void*)ptr);
+                                addr_t ptr = SIZE_MEG;
+                                size_t size = mmap->len - (SIZE_MEG - mmap->addr);
+                                for (; ptr < mmap->addr+size; ptr += PAGE_ALLOC_FACTOR)
+                                        page_unmark((void*)ptr);
+                        }
+                        if (mmap->addr >= SIZE_MEG)
+                        {
+                                addr_t ptr = mmap->addr;
+                                for (; ptr < mmap->addr + mmap->len && ptr < (addr_t)-1;
+                                        ptr += PAGE_ALLOC_FACTOR)
+                                {
+                                        page_unmark((void*)ptr);
+                                }
                         }
                 }
-
-        itteration_skip:
-                mmap = (void*)((addr_t)mmap + mmap->size+sizeof(mmap->size));
         }
         return -E_SUCCESS;
 }

@@ -57,7 +57,7 @@ buffer_rm_block(struct buffer_list* this, idx_t offset, int depth)
                 return -E_INVALID_ARG;
 
         if (this == NULL)
-                goto err;
+                return -E_NULL_PTR;
 
         idx_t idx = get_idx(offset, depth);
 
@@ -68,7 +68,10 @@ buffer_rm_block(struct buffer_list* this, idx_t offset, int depth)
         {
                 struct buffer_list* list = this->lists[idx];
                 if (list == NULL)
-                        goto err_locked;
+                {
+                        mutex_unlock(&this->lock);
+                        return -E_NULL_PTR;
+                }
                 ret = buffer_rm_block(list, offset, depth+1);
                 switch(ret)
                 {
@@ -86,7 +89,10 @@ buffer_rm_block(struct buffer_list* this, idx_t offset, int depth)
         }
 
         if (this->blocks[idx] == NULL)
-                goto err_locked;
+        {
+                mutex_unlock(&this->lock);
+                return -E_NULL_PTR;
+        }
         kfree(this->blocks[idx]);
         this->blocks[idx] = NULL;
 
@@ -95,11 +101,6 @@ buffer_rm_block(struct buffer_list* this, idx_t offset, int depth)
                 return -E_CLEAN_PARENT;
 
         return -E_SUCCESS;
-
-err_locked:
-        mutex_unlock(&this->lock);
-err:
-        return -E_NULL_PTR;
 }
 
 /**
@@ -199,7 +200,7 @@ static struct buffer_block*
 buffer_find_block(struct buffer_list* this, idx_t offset, int depth)
 {
         if (this == NULL)
-                goto err;
+                return NULL;
 
         idx_t list_idx = get_idx(offset, depth);
         struct buffer_block* ret;
@@ -211,9 +212,6 @@ buffer_find_block(struct buffer_list* this, idx_t offset, int depth)
                 ret = this->blocks[list_idx];
         }
         return ret;
-
-err:
-        return NULL;
 }
 
 /**

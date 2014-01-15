@@ -44,19 +44,13 @@ ram_fs_init(struct device* drive)
                 * Build the ram file system here
                 */
                 super->dev = kmalloc(sizeof(struct device));
-                if (super->dev == NULL)
-                        goto dev_alloc;
-                memset(super->dev, 0, sizeof(struct device));
+                if (super->dev != NULL)
+                {
+                        memset(super->dev, 0, sizeof(struct device));
+                        return super;
+                }
         }
-        else
-        {
-                goto dev_alloc;
-                // Going to err will do for now ...
-        }
-
-        return super;
-
-dev_alloc:
+        
         kfree(super);
         return NULL;
 }

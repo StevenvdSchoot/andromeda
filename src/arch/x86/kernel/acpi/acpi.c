@@ -126,7 +126,6 @@ acpi_apic_add_list(void *apic)
   if(acpi_apics->apic->apic == NULL)
   {
     acpi_apics->apic->apic = (struct ol_madt_apic*)apic;
-    goto end;
   }
   else
   {
@@ -140,11 +139,10 @@ acpi_apic_add_list(void *apic)
         carriage->next->previous = carriage;
         carriage->next->next = NULL;
         carriage->next->apic = (struct ol_madt_apic*)apic;
-        goto end;
+        return;
       }
     }
   }
-  end:
   return;
 }
 
@@ -157,7 +155,6 @@ acpi_ioapic_add_list(void *io)
     acpi_apics->ioapic->ioapic = (struct ol_madt_ioapic*)io;
     acpi_apics->ioapic->next = NULL;
     acpi_apics->ioapic->previous = NULL;
-    goto end;
   }
   else
   {
@@ -171,11 +168,10 @@ acpi_ioapic_add_list(void *io)
         carriage->next->previous = carriage;
         carriage->next->next = NULL;
         carriage->next->ioapic = (struct ol_madt_ioapic*)io;
-        goto end;
+        return;
       }
     }
   }
-  end:
   return;
 }
 

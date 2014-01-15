@@ -38,7 +38,10 @@ create_ioapic (ol_madt_ioapic_t madt_io)
   ioapic_t io = kmalloc(sizeof(*io));
   cpus->lock(&cpu_lock);
   if (io == NULL)
-    goto nomem;
+  {
+    ol_dbg_heap();
+    panic("No free memory in heap in create_ioapic!");
+  }
   else
   {
     page_map_kernel_entry(madt_io->address, madt_io->address);
@@ -47,15 +50,10 @@ create_ioapic (ol_madt_ioapic_t madt_io)
     io->id = madt_io->id;
     io->read = &ioapic_read_dword;
     io->write = &ioapic_write_dword;
+    program_ioapic_pin(io, 0, 0);
+    cpus->unlock(&cpu_lock);
   }
-  program_ioapic_pin(io, 0, 0);
-  cpus->unlock(&cpu_lock);
   return io;
-
-  nomem:
-  ol_dbg_heap();
-  panic("No free memory in heap in create_ioapic!");
-  return NULL; /* to keep the compiler happy */
 }
 
 int

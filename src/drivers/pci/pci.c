@@ -96,7 +96,7 @@ ol_pci_init()
   /* initialise the list */
   pcidevs = kmalloc(sizeof(*pcidevs));
   if(pcidevs == NULL)
-    goto fail;
+    return endProg();
 
   pcidevs->next = NULL;
   pcidevs->previous = NULL;
@@ -104,7 +104,7 @@ ol_pci_init()
 
   ol_pci_iterate_dev_t dev = kmalloc(sizeof (*dev));
   if(dev == NULL)
-    goto fail;
+    return endProg();
 #if 0
   dev->hook = &show_pci_dev;
 #else
@@ -117,10 +117,6 @@ ol_pci_init()
   debug_pci_list();
 #endif
   return;
-
-  fail:
-  //ol_dbg_heap();
-  endProg();
 }
 
 static int
@@ -155,7 +151,7 @@ pci_add_list(ol_pci_iterate_dev_t itdev)
     pcidevs->dev = dev;
     pcidevs->next = NULL;
     pcidevs->previous = NULL;
-    goto end;
+    return FALSE;
   }
   else
   {
@@ -172,7 +168,7 @@ pci_add_list(ol_pci_iterate_dev_t itdev)
         node->next->dev = dev;
         node->next->next = NULL;
         node->next->previous = node;
-        goto end;
+        return FALSE;
       }
     }
   }
@@ -180,7 +176,6 @@ pci_add_list(ol_pci_iterate_dev_t itdev)
   /*
    * create the actual device which will be added to the list
    */
-  end:
   return FALSE; /* we want to list all devices */
 
   fail:

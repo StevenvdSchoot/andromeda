@@ -81,13 +81,15 @@ void* page_realloc(void* ptr)
 
         mutex_lock(&page_alloc_lock);
 
-        if (pagemap[idx] >= 0 || pagemap[idx] == (long)PAGE_LIST_MARKED)
-                goto err;
+        if (pagemap[idx] < 0 && pagemap[idx] != (long)PAGE_LIST_MARKED)
+        {
+                pagemap[idx]--;
+                ret = ptr;
+        }
 
         pagemap[idx]--;
 
         ret = ptr;
-err:
         mutex_unlock(&page_alloc_lock);
         return ret;
 }
@@ -207,19 +209,18 @@ int page_unmark(void* page)
         mutex_lock(&page_alloc_lock);
 
         /* Oh noes!!! Wait a sec, there's nothing to be done here! */
-        if (pagemap[p] != PAGE_LIST_MARKED)
-                goto err;
+        if (pagemap[p] == PAGE_LIST_MARKED)
+        {
+                /* Mark the page as usable */
+                if (first_free < 0)
+                        pagemap[p] = PAGE_LIST_END;
+                else
+                        pagemap[p] = first_free;
 
-        /* Mark the page as usable */
-        if (first_free < 0)
-                pagemap[p] = PAGE_LIST_END;
-        else
-                pagemap[p] = first_free;
+                /* Nah, allocate this page as soon as possible! */
+                first_free = p;
+        }
 
-        /* Nah, allocate this page as soon as possible! */
-        first_free = p;
-
-err:
         /* Finally, leave critical */
         mutex_unlock(&page_alloc_lock);
         /* That went well, didn't it? */
@@ -240,17 +241,17 @@ int page_free(void* page)
         /* Enter critical */
         mutex_lock(&page_alloc_lock);
 
-        if (pagemap[p] >= 0)
-                goto err;
-        if (++pagemap[p] == 0)
+        if (pagemap[p] < 0)
         {
-                /* Mark pages as free */
-                pagemap[p] = first_free;
-                /* Make pages first free (caching reasons) */
-                first_free = p;
+                if (++pagemap[p] == 0)
+                {
+                        /* Mark pages as free */
+                        pagemap[p] = first_free;
+                        /* Make pages first free (caching reasons) */
+                        first_free = p;
+                }
         }
-
-err:
+        
         /* Leave critical */
         mutex_unlock(&page_alloc_lock);
         return -E_SUCCESS;

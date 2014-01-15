@@ -129,7 +129,10 @@ static int pipe_read(struct pipe* pipe, char* data, int len)
                 {
                         block = pipe_get_block(pipe, ++key);
                         if (block == NULL)
-                                goto err;
+                        {
+                                mutex_unlock(&pipe->lock);
+                                return -E_NULL_PTR;
+                        }
                         offset = 0;
                 }
                 data[i] = ((char*)block)[offset];
@@ -139,9 +142,6 @@ static int pipe_read(struct pipe* pipe, char* data, int len)
 
         mutex_unlock(&pipe->lock);
         return -E_NOFUNCTION;
-err:
-        mutex_unlock(&pipe->lock);
-        return -E_NULL_PTR;
 }
 
 /**

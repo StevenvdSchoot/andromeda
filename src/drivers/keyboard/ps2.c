@@ -70,12 +70,10 @@ ol_ps2_await_ack(ol_ps2_dev_t dev)
   {
     ol_ps2_update_status(dev);
     if ((dev->status & 0x1) != 0)
-      goto read;
+      return inb(dev->read_port);
   }
 
   return 0xff; // return an error
-
-  read: return inb(dev->read_port);
 }
 
 static void
@@ -102,18 +100,18 @@ ol_ps2_write(ol_ps2_dev_t dev, uint8_t val, bool ack)
   {
     ol_ps2_update_status(dev);
     if ((dev->status & 0x2) == 0)
-      goto write;
+    {
+      outb(dev->write_port, val);
+      for (i = 0; i < 10; i++)
+      {
+        readback = ol_ps2_await_ack(dev);
+        if (readback == 0xfa)
+          return 0; /* got the ack byte, bail out */
+      }
+      return -1; /* sorry, but we didn't get an ack byte.. */
+    }
   }
   return -1;
-
-  write: outb(dev->write_port, val);
-  for (i = 0; i < 10; i++)
-  {
-    readback = ol_ps2_await_ack(dev);
-    if (readback == 0xfa)
-      return 0; /* got the ack byte, bail out */
-  }
-  return -1; /* sorry, but we didn't get an ack byte.. */
 }
 
 int
