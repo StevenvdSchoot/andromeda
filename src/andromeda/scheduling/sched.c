@@ -18,6 +18,7 @@
 
 /** \file */
 
+#include <defines.h>
 #include <stdlib.h>
 #include <thread.h>
 #include "sched.h"
@@ -53,10 +54,10 @@ int fork()
         return -E_NOFUNCTION;
 }
 
-void sig(int sig)
+void sig(UNUSED int sig)
 {}
 
-void kill(int num)
+void kill(UNUSED int num)
 {}
 
 int task_init()

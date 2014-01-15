@@ -25,6 +25,13 @@
 extern "C" {
 #endif
 
+  
+#ifdef __GNUC__ || __clang__
+#  define UNUSED __attribute__((__unused__))
+#else
+#  define UNUSED 
+#endif
+
 
 #ifdef __cplusplus
 }
