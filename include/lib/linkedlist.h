@@ -1,6 +1,6 @@
 /*
  *  Andromeda
- *  Copyright (C) 2011  Bart Kuivenhoven
+ *  Copyright (C) 2011  Michel Megens - dev@michelmegens.net
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,19 +16,29 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <thread.h>
-#include <andromeda/core.h>
-#include <andromeda/system.h>
+#ifndef LINKEDLIST_H
+#define LINKEDLIST_H
 
-extern uint32_t key_pressed;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-void demand_key()
-{
-        printf("Press any key to continue!\n");
-        key_pressed = 0;
-        while(key_pressed == 0)
-                halt();
-        return;
+struct list_node;
+
+struct list{
+        struct list_node* head;
+        size_t size;
+        mutex_t lock;
+};
+
+struct list_node {
+        struct list_node* head;
+        struct list_node* next;
+        void* data;
+};
+
+#ifdef __cplusplus
 }
+#endif
+
+#endif // LINKEDLIST_H

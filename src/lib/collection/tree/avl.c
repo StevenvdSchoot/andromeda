@@ -508,16 +508,17 @@ static int tree_add(struct tree_root* root, struct tree* tree)
         int ret = 0;
         mutex_lock(&root->mutex);
         /* Add the node into the tree if there already is one */
-        if (root->tree != NULL)
+        if (root->tree == NULL)
+        {
+                /* There is no subtree, so create the first one */
+                root->tree = tree;
+                ret = -E_SUCCESS;
+        }
+        else
         {
                 ret = tree_add_node(root->tree, tree);
-                goto success;
         }
-
-        /* There is no subtree, so create the first one */
-        root->tree = tree;
-        ret = -E_SUCCESS;
-success:
+        
         mutex_unlock(&root->mutex);
         return ret;
 }

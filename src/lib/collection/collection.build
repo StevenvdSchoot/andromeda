@@ -1,10 +1,10 @@
 {
-"name" : "lib",
+"name" : "lib-collection",
 "link" : false,
 "archive" : false,
 "source-files" : [],
 "compiler-flags" : "",
 "linker-flags" : "",
 "archiver-flags" : "",
-"depend" : [{"path" : "collection/collection.build"}, {"path" : "stdio/stdio.build"}]
+"depend" : [{"path" : "tree/tree.build"}, {"path" : "list/list.build"}]
 }

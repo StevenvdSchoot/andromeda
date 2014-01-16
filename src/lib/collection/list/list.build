@@ -1,8 +1,8 @@
 {
-"name" : "lib-avl",
+"name" : "lib-list",
 "link" : false,
 "archive" : false,
-"source-files" : ["tree.c"],
+"source-files" : ["linkedlist.c", "xorlist.c"],
 "compiler-flags" : "",
 "linker-flags" : "",
 "archiver-flags" : ""
