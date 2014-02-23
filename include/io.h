@@ -89,6 +89,15 @@ outw(uint16_t, uint16_t);
 void
 outl(uint16_t, uint32_t);
 
+void
+outsb(uint16_t, const void*, size_t);
+
+void
+outsw(uint16_t, const void*, size_t);
+
+void
+outsl(uint16_t, const void*, size_t);
+
 uint8_t
 inb(uint16_t);
 
@@ -97,6 +106,15 @@ inw(uint16_t);
 
 uint32_t
 inl(uint16_t);
+
+void
+insb(uint16_t, void*, size_t);
+
+void
+insw(uint16_t, void*, size_t);
+
+void
+insl(uint16_t, void*, size_t);
 
 void
 iowait(void);

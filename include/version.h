@@ -28,7 +28,7 @@ extern "C" {
 #endif
 
 #define NAME "Betelgeuse (Alpha Orionis)"
-#define YEARS "2011 - 2013"
+#define YEARS "2011 - 2014"
 
 #define WELCOME "Andromeda " VERSION " - " NAME\
 "\nCopyright (C) " YEARS " - Michel Megens, Bart Kuivenhoven, Steven vd Schoot\n"\

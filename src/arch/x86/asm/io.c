@@ -49,6 +49,36 @@ outl (uint16_t port, uint32_t data)
                        );
 }
 
+void
+outsb (uint16_t port, const void* data, size_t count)
+{
+  __asm__ __volatile__("rep; outsb"
+                       : "+S" (data),
+                         "+c" (count)
+                       : "d" (port)
+                       );
+}
+
+void
+outsw (uint16_t port, const void* data, size_t count)
+{
+  __asm__ __volatile__("rep; outsw"
+                       : "+S" (data),
+                         "+c" (count)
+                       : "d" (port)
+                       );
+}
+
+void
+outsl (uint16_t port, const void* data, size_t count)
+{
+  __asm__ __volatile__("rep; outsl"
+                       : "+S" (data),
+                         "+c" (count)
+                       : "d" (port)
+                       );
+}
+
 uint8_t
 inb (uint16_t port)
 {
@@ -80,6 +110,39 @@ inl (uint16_t port)
                        : "d" (port)
                        );
   return ret;
+}
+
+void
+insb (uint16_t port, void* data, size_t count)
+{
+   __asm__ __volatile__("rep; insb"
+                        : "+D" (data),
+                          "+c" (count)
+                        : "d" (port)
+                        : "memory"
+                        );
+}
+
+void
+insw (uint16_t port, void* data, size_t count)
+{
+   __asm__ __volatile__("rep; insw"
+                        : "+D" (data),
+                          "+c" (count)
+                        : "d" (port)
+                        : "memory"
+                        );
+}
+
+void
+insl (uint16_t port, void* data, size_t count)
+{
+   __asm__ __volatile__("rep; insl"
+                        : "+D" (data),
+                          "+c" (count)
+                        : "d" (port)
+                        : "memory"
+                        );
 }
 
 void

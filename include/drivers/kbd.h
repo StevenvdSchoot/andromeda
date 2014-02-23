@@ -157,6 +157,8 @@ struct scancode_list {
 
 };
 
+void pause();
+
 #ifdef __cplusplus
 }
 #endif

@@ -1,0 +1,109 @@
+[Buildset]
+BuildItems=@Variant(\x00\x00\x00\t\x00\x00\x00\x00\x00)
+
+[CustomBuildSystem]
+CurrentConfiguration=BuildConfig0
+
+[CustomBuildSystem][BuildConfig0]
+BuildDir=
+Title=Build
+
+[CustomBuildSystem][BuildConfig0][ProjectPath0]
+Defines=\x00\x00\x00\x00
+Includes=\x00\x00\x00\x00
+Path=.
+
+[CustomBuildSystem][BuildConfig0][ToolBuild]
+Arguments=-jar scripts/build.jar andromeda.build -t cores
+Enabled=true
+Environment=
+Executable=java
+Type=0
+
+[CustomBuildSystem][BuildConfig0][ToolClean]
+Arguments=
+Enabled=false
+Environment=
+Executable=
+Type=3
+
+[CustomBuildSystem][BuildConfig0][ToolConfigure]
+Arguments=
+Enabled=false
+Environment=
+Executable=
+Type=1
+
+[CustomBuildSystem][BuildConfig0][ToolInstall]
+Arguments=
+Enabled=false
+Environment=
+Executable=
+Type=2
+
+[CustomBuildSystem][BuildConfig0][ToolPrune]
+Arguments=
+Enabled=false
+Environment=
+Executable=
+Type=4
+
+[Launch]
+Launch Configurations=Launch Configuration 0,Launch Configuration 1,Launch Configuration 2
+
+[Launch][Launch Configuration 0]
+Configured Launch Modes=execute
+Configured Launchers=nativeAppLauncher
+Name=make test
+Type=Native Application
+
+[Launch][Launch Configuration 0][Data]
+Arguments=test
+Dependencies=@Variant(\x00\x00\x00\t\x00\x00\x00\x00\x00)
+Dependency Action=Nothing
+EnvironmentGroup=default
+Executable=make
+External Terminal=konsole --noclose --workdir %workdir -e %exe
+Project Target=
+Use External Terminal=false
+Working Directory=file:///home/steven/andromeda
+isExecutable=true
+
+[Launch][Launch Configuration 1]
+Configured Launch Modes=execute
+Configured Launchers=nativeAppLauncher
+Name=make test iso
+Type=Native Application
+
+[Launch][Launch Configuration 1][Data]
+Arguments=test_iso
+Dependencies=@Variant(\x00\x00\x00\t\x00\x00\x00\x00\x00)
+Dependency Action=Nothing
+EnvironmentGroup=default
+Executable=make
+External Terminal=konsole --noclose --workdir %workdir -e %exe
+Project Target=
+Use External Terminal=false
+Working Directory=file:///home/steven/andromeda
+isExecutable=true
+
+[Launch][Launch Configuration 2]
+Configured Launch Modes=execute
+Configured Launchers=nativeAppLauncher
+Name=make doxygen
+Type=Native Application
+
+[Launch][Launch Configuration 2][Data]
+Arguments=doxygen
+Dependencies=@Variant(\x00\x00\x00\t\x00\x00\x00\x00\x00)
+Dependency Action=Nothing
+EnvironmentGroup=default
+Executable=make
+External Terminal=konsole --noclose --workdir %workdir -e %exe
+Project Target=
+Use External Terminal=false
+Working Directory=file:///home/steven/andromeda
+isExecutable=true
+
+[Project]
+VersionControlSupport=kdevgit
