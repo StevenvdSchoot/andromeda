@@ -23,6 +23,8 @@
 #include <sys/io.h>
 #include <sys/dev/ps2.h>
 
+static volatile uint8_t pause_mode;
+
 static ol_kb_scancode_t keycodes[] = {
 
 	{0x00, 0xff, 0x00, 0xff, 0x00, 0xff,   0, '\0'},
@@ -221,9 +223,16 @@ void kb_handle(uint8_t c)
 				scroll(1);
 				break;
 			default:
-                                shiftkey ? putc(keycodes[c].capvalue) :
-                                    putc(keycodes[c].value);
-                                key_pressed = 1;
+				if(pause_mode)
+				{
+					pause_mode = 0;
+				}
+				else
+				{
+					shiftkey ? putc(keycodes[c].capvalue) :
+						putc(keycodes[c].value);
+					key_pressed = 1;
+				}
 				break;
 		}
 
@@ -241,4 +250,13 @@ static void toggle_kb_leds(uint8_t status)
         {
                 ol_ps2_config_keyboard(status);
         }
+}
+
+void pause()
+{
+	puts("Press any key to continue...");
+	pause_mode = 1;
+	while(pause_mode)
+		halt();
+	putc('\n');
 }

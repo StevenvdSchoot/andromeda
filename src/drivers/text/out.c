@@ -67,13 +67,19 @@ void scroll(unsigned char lines)
  * \fn println
  * \deprecated
  */
-void println(char *line)
+void println(const char *line)
 {
 	printf(line);
 	putc('\n');
 }
 
-void printf(char *line, ...)
+void puts(const char* str)
+{
+	while(*str != '\0')
+		putc(*str++);
+}
+
+void printf(const char *line, ...)
 {
         int i;
         va_list list;
@@ -358,7 +364,7 @@ void putc(unsigned char i)
 }
  */
 
-void putc(uint8_t c)
+void putc(const uint8_t c)
 {
 	uint16_t *vidmem = (uint16_t*) KEYBUF;
 	uint32_t i = (cursor.y * VGA_WIDTH) + cursor.x;

@@ -27,9 +27,10 @@
 extern "C" {
 #endif
 
-void println(char*);
-void printf(char*, ...);
-void putc(uint8_t c);
+void println(const char*);
+void printf(const char*, ...);
+void putc(const uint8_t);
+void puts(const char*);
 //void printNum(int index, unsigned int base, boolean sInt, boolean capital);
 #define printnum(a,b,c,d) printNum(a,b,c,d)
 //void printDecimalNum(double index, unsigned int base);

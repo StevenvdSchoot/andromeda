@@ -25,6 +25,7 @@
  *
  * The init function also displays the welcome message.
  */
+#define __ATAPI_DBG
 
 // Basic includes
 #include <version.h>
@@ -69,6 +70,10 @@
 #include <mm/page_alloc.h>
 
 #include <lib/byteorder.h>
+
+#ifdef __ATAPI_DBG
+#  include <drivers/ata.h>
+#endif
 
 // Define the place of the heap
 
@@ -213,6 +218,13 @@ int init(unsigned long magic, multiboot_info_t* hdr)
         page_free((void*)p);
         printf("Allocated: %X\n", p);
         page_dump();
+#endif
+        
+#ifdef __ATAPI_DBG
+        uint32_t base = 0x1F0;
+				ol_ata_device device;
+        ol_ata_init(base, &device);
+        ol_ata_test(&device);
 #endif
 
         core_loop();

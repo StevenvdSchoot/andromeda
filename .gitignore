@@ -16,3 +16,8 @@ doc/doxygen/*
 andromeda.project
 andromeda.tags
 andromeda.workspace*
+hda.qcow
+
+andromeda.kdev4
+.kdev_include_paths
+/.kdev4
