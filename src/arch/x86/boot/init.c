@@ -25,7 +25,6 @@
  *
  * The init function also displays the welcome message.
  */
-#define __ATAPI_DBG
 
 // Basic includes
 #include <version.h>
@@ -71,7 +70,7 @@
 
 #include <lib/byteorder.h>
 
-#ifdef __ATAPI_DBG
+#ifdef __ATA_DBG
 #  include <drivers/ata.h>
 #endif
 
@@ -220,10 +219,9 @@ int init(unsigned long magic, multiboot_info_t* hdr)
         page_dump();
 #endif
         
-#ifdef __ATAPI_DBG
-        uint32_t base = 0x1F0;
+#ifdef __ATA_DBG
 				ol_ata_device device;
-        ol_ata_init(base, &device);
+        ol_ata_init(ATA_BASE_BUS_PRIMARY, &device);
         ol_ata_test(&device);
 #endif
 

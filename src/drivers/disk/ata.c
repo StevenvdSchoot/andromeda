@@ -536,6 +536,8 @@ ata_atapi_writeBytes(const uint32_t bus, short* buf, size_t size)
 }
 */
 
+#define DEFAULT_SECTORSIZE (512)
+
 typedef enum
 {
 	CB_READ_DATA  = 0x000,   // data reg         in/out pio_base_addr1+0
@@ -563,197 +565,44 @@ typedef enum
 	CB_WRITE_DC    = 0x206,   // device control      out pio_base_addr2+6
 } ol_ata_pio_writebytes;
 
-static inline uint8_t
-readPIOByte(const uint32_t base, const ol_ata_pio_writebytes addr)
-{
-	return inb(base + addr);
-}
-
-static inline void
-writePIOByte(const uint32_t base, const ol_ata_pio_writebytes addr, const uint8_t data)
-{
-	return outb(base + addr, data);
-}
-
-static inline void
-readPIOData(const uint32_t base, uint8_t* addr, const uint32_t count)
-{
-	return insw(base, addr, count);
-}
-
-static inline void
-writePIOData(const uint32_t base, const uint8_t* addr, const uint32_t count)
-{
-	return outsw(base, addr, count);
-}
-
-static void
-writeLBA(const uint32_t base, const uint64_t LBA, uint8_t flag)
-{
-	writePIOByte(base, CB_WRITE_SN,   (LBA >>  0) & 0xff                );
-	writePIOByte(base, CB_WRITE_CL,   (LBA >>  8) & 0xff                );
-	writePIOByte(base, CB_WRITE_CH,   (LBA >> 16) & 0xff                );
-	writePIOByte(base, CB_WRITE_DH, ( (LBA >> 24) & 0x0f) | (flag << 4) );
-}
-
-void
-ol_ata_softreset(const uint32_t base)
-{
-	writePIOByte(base, CB_WRITE_DC, (1 << 2) );
-	writePIOByte(base, CB_WRITE_DC, 0);
-}
-
-ol_ata_type
-ol_ata_detect_drive_type(const uint32_t base, const boolean slave)
-{
-	writePIOByte(base, CB_WRITE_FR, 4);
-	writePIOByte(base, CB_WRITE_DH, 0xA0 | (slave << 4) );
-	
-	readPIOByte(base, CB_WRITE_DC);
-	readPIOByte(base, CB_WRITE_DC);
-	readPIOByte(base, CB_WRITE_DC);
-	readPIOByte(base, CB_WRITE_DC);
-	
-	uint8_t cl = readPIOByte(base, CB_WRITE_CL);
-	uint8_t ch = readPIOByte(base, CB_WRITE_CH);
-	
-	if(cl == 0x14 && ch == 0xEB)
-		return ATA_TYPE_PATAPI;
-	if(cl == 0x69 && ch == 0x96)
-		return ATA_TYPE_SATAPI;
-	if(cl == 0 && ch == 0)
-		return ATA_TYPE_PATA;
-	if(cl == 0x3c && ch == 0xc3)
-		return ATA_TYPE_SATA;
-	
-	return ATA_TYPE_UNKNOWN;
-}
-
-static void
-waitDeviceNotBusy(const uint32_t base)
-{
-	while( readPIOByte(base, CB_READ_STAT) & (1 << 7) ) // Wait until bit 7 (busy bit) of status reg is low
-		;
-}
-
-static void
-waitDeviceReady(const uint32_t base)
-{
-	while( !(readPIOByte(base, CB_READ_STAT) & (1 << 6)) ) // Wait until bit 7 (busy bit) of status reg is low
-		;
-}
-
-static void
-waitDeviceData(const uint32_t base)
-{
-	while( !(readPIOByte(base, CB_READ_STAT) & (1 << 3)) ) // Wait until bit 7 (busy bit) of status reg is low
-		;
-}
-
-static uint8_t
-waitDeviceStatus(const uint32_t base)
-{
-	uint8_t status;
-	int i;
-	
-	for(i = 0; i < 4; i++)
-	{
-		status = readPIOByte(base, CB_READ_STAT);
-		
-		if( status  & (1 << 7) ) // Keep waiting while busy
-			continue;
-		
-		if( status  & (1 << 3) ) // Return when not busy and data ready
-			return ( status  & ((1 << 5) | (1 << 0)) ) ? ( (status >> 3) & 0x03 ) : 0;
-	}
-	
-	do
-	{
-		status = readPIOByte(base, CB_READ_STAT);
-		
-		if( status  & (1 << 7) ) // Keep waiting while busy
-			continue;
-		
-		if( status  & ((1 << 5) | (1 << 0)) ) // Return when not busy and error or df
-			return 0xf8 | ( (status >> 3) & 0x03 );
-		
-	} while ( 0 );
-	
-	return 0; // Return when not busy and no error or df
-}
-
-static void
-prepareDevice(const uint32_t base)
-{
-	waitDeviceNotBusy(base);
-	// __asm__ volatile("cli");
-	waitDeviceReady(base);
-}
-
-static inline void
-puthex_part(uint8_t num)
-{
-	if(num <= 9)
-		putc('0' + num );
-	else
-		putc( ('a' - 10) + num );
-}
-
-static void
-puthex(uint8_t num)
-{
-	puthex_part(num >> 4);
-	puthex_part(num & 0x0f);
-}
-
-static void
-puthex_int(uint32_t num)
-{
-	puthex_part((num >> 28) & 0x0f);
-	puthex_part((num >> 24) & 0x0f);
-	puthex_part((num >> 20) & 0x0f);
-	puthex_part((num >> 16) & 0x0f);
-	puthex_part((num >> 12) & 0x0f);
-	puthex_part((num >>  8) & 0x0f);
-	puthex_part((num >>  4) & 0x0f);
-	puthex_part( num        & 0x0f);
-}
-
-static void
-printBuf(const void* printbuf, const unsigned int offset, const unsigned int count)
-{
-	const char* buf = printbuf;
-	unsigned int i = offset;
-	while(i < count)
-	{
-		puthex_int(i);
-		putc(' ');
-		puthex(buf[i]);
-		while( (i % 16) != 15 )
-		{
-			i++;
-			if(!(i % 4))
-				putc(' ');
-			putc(' ');
-			puthex(buf[i]);
-		}
-		putc('\n');
-		i++;
-	}
-}
+typedef enum {
+	FEATURE_ENABLE_8BitPIOTransferMode = 0x01, // If CFA feature set supported
+	FEATURE_ENABLE_VolatileWriteCache = 0x02,
+	//FEATURE_SetTransferMode = 0x03, // TODO!
+	FEATURE_ENABLE_APM = 0x05,
+	FEATURE_ENABLE_PowerUpInStandby = 0x06,
+	//FEATURE_PowerUpInStandbySpinUp = 0x07, // TODO!
+	//FEATURE_??? = 0x09, // If CFA feature set supported // TODO!
+	//FEATURE_AddressOffsetReservedAreaBootMethod = 0x09, // If CFA feature set not supported // TODO!
+	FEATURE_ENABLE_CFAPowerMode1 = 0x0A,
+	FEATURE_ENABLE_WriteReadVerify = 0x0B,
+	FEATURE_ENABLE_SATA = 0x10,
+	FEATURE_ENABLE_FreeFallControl = 0x41,
+	FEATURE_ENABLE_AAM = 0x42,
+	//FEATURE_MaximumHostInterfaceSectorTimes = 0x43, // TODO!
+	FEATURE_DISABLE_ReadLookAhead = 0x55,
+	FEATURE_ENABLE_ReleaseInterrupt = 0x5D,
+	FEATURE_ENABLE_ServiceInterrupt = 0x5E,
+	//FEATURE_DISABLE_RevertingToPowerOnDefaults = 0x66, // TODO!
+	//FEATURE_??? = 0x69, // If CFA feature set supported // TODO!
+	FEATURE_DISABLE_8BitPIOTransferMode = 0x81, // If CFA feature set supported
+	FEATURE_DISABLE_VolatileWriteCache = 0x82,
+	FEATURE_DISABLE_APM = 0x85,
+	FEATURE_DISABLE_PowerUpInStandby = 0x86,
+	//FEATURE_??? = 0x89, // If CFA feature set supported // TODO!
+	FEATURE_DISABLE_CFAPowerMode1 = 0x8A,
+	FEATURE_DISABLE_WriteReadVerify = 0x8B,
+	FEATURE_DISABLE_SATA = 0x90,
+	FEATURE_ENABLE_ReadLookAhead = 0xAA,
+	FEATURE_DISABLE_FreeFallControl = 0xC1,
+	FEATURE_DISABLE_AAM = 0xC2,
+	//FEATURE_ENABLE_RevertingToPowerOnDefaults = 0xCC, // TODO!
+	FEATURE_DISABLE_ReleaseInterrupt = 0xDD,
+	FEATURE_DISABLE_ServiceInterrupt = 0xDE,
+} ol_ata_setfeatures;
 
 void
-ol_ata_get_device_info(uint32_t base, ol_ata_data_identify_device* device)
-{
-	prepareDevice(base);
-	writePIOByte(base, CB_WRITE_CMD, 0xEC);
-	waitDeviceData(base);
-	readPIOData(base, device, 256);
-	// __asm__ volatile("sti");
-}
-
-void
-ol_ata_printDeviceInfo(const ol_ata_data_identify_device* device)
+ol_ata_printDeviceInfo(const ol_ata_data_identify_device* device, const uint32_t sectorsize)
 {
 #define PRINTINFO_BOOL2STRING(b) ( (b) ? "true" : "false" )
 #define PRINTINFO_NUM2UINT(n) ( (uint32_t) n )
@@ -794,7 +643,7 @@ ol_ata_printDeviceInfo(const ol_ata_data_identify_device* device)
 	
 	pause();
 	
-	printf("UserAddressableSectors: %u\n", PRINTINFO_NUM2UINT(device->UserAddressableSectors) );
+	printf("UserAddressableSectors: %u\n", PRINTINFO_NUM2UINT(device->UserAddressableSectors28Bit) );
 	printf("MultiWordDMASupportMode1: %s\n", PRINTINFO_BOOL2STRING(device->MultiWordDMA.MultiWordDMASupportMode1) );
 	printf("MultiWordDMASupportMode2: %s\n", PRINTINFO_BOOL2STRING(device->MultiWordDMA.MultiWordDMASupportMode2) );
 	printf("MultiWordDMASupportMode3: %s\n", PRINTINFO_BOOL2STRING(device->MultiWordDMA.MultiWordDMASupportMode3) );
@@ -974,11 +823,10 @@ ol_ata_printDeviceInfo(const ol_ata_data_identify_device* device)
 	printf("UniqueID_part2: %u\n", PRINTINFO_NUM2UINT(device->UniqueID_part2) );
 	printf("UniqueID_part3: %u\n", PRINTINFO_NUM2UINT(device->UniqueID_part3) );
 	// TODO: ReservedForWorldWideName128?  ReservedForTlcTechnicalReport?  WordsPerLogicalSector[0]?  WordsPerLogicalSector[1]?
-	printf("WordsPerLogicalSector[0]: %u\n", PRINTINFO_NUM2UINT(device->WordsPerLogicalSector[0]) );
-	printf("WordsPerLogicalSector[1]: %u\n", PRINTINFO_NUM2UINT(device->WordsPerLogicalSector[1]) );
+	printf("WordsPerLogicalSector: %u\n", PRINTINFO_NUM2UINT(device->WordsPerLogicalSector) );
 	
-	printf("WriteReadVerifySupported: %s\n", PRINTINFO_BOOL2STRING(device->CommandSetSupportExt.WriteReadVerifySupported) );
-	printf("WriteReadVerifyEnabled: %s\n", PRINTINFO_BOOL2STRING(device->CommandSetActiveExt.WriteReadVerifyEnabled) );
+	printf("WriteReadVerifySupported: %s\n", PRINTINFO_BOOL2STRING(device->CommandSetSupportExt.WriteReadVerify) );
+	printf("WriteReadVerifyEnabled: %s\n", PRINTINFO_BOOL2STRING(device->CommandSetActiveExt.WriteReadVerify) );
 	
 	printf("MsnSupport: %s\n", PRINTINFO_BOOL2STRING(device->MsnSupport.MsnSupport) );
 	
@@ -1027,23 +875,211 @@ ol_ata_printDeviceInfo(const ol_ata_data_identify_device* device)
 	
 	puts("Derived from the info above:\n");
 	
-	uint32_t sectorsize;
 	uint32_t driveCapacity;
 	
-	if(device->PhysicalLogicalSectorSize.LogicalSectorLongerThan256Words)
-		sectorsize = (1 << device->PhysicalLogicalSectorSize.LogicalSectorsPerPhysicalSector) * 512;
-	else
-		sectorsize = 512;
+	driveCapacity = sectorsize * device->UserAddressableSectors28Bit; // Only works for drives with less then 2^28 capacity...
 	
-	driveCapacity = sectorsize * device->UserAddressableSectors; // Only works for drives with less then 4G capacity ;)
-	
-	printf("User addressable sectors: %i\n", device->UserAddressableSectors);
 	printf("Sectors size: %u bytes\n", sectorsize );
 	printf("Drive capacity: %u bytes (= %u MB)\n", driveCapacity, (driveCapacity + 500*1000) /(1000*1000) );
 }
 
+static inline uint8_t
+readPIOByte(const ol_ata_base base, const ol_ata_pio_writebytes addr)
+{
+	return inb(base + addr);
+}
+
+static inline void
+writePIOByte(const ol_ata_base base, const ol_ata_pio_writebytes addr, const uint8_t data)
+{
+	return outb(base + addr, data);
+}
+
+static inline void
+readPIOData(const ol_ata_base base, uint8_t* addr, const uint32_t count)
+{
+	return insw(base, addr, count);
+}
+
+static inline void
+writePIOData(const ol_ata_base base, const uint8_t* addr, const uint32_t count)
+{
+	return outsw(base, addr, count);
+}
+
+static void
+writeLBA(const ol_ata_base base, const uint64_t LBA, uint8_t flag)
+{
+	writePIOByte(base, CB_WRITE_SN,   (LBA >>  0) & 0xff                );
+	writePIOByte(base, CB_WRITE_CL,   (LBA >>  8) & 0xff                );
+	writePIOByte(base, CB_WRITE_CH,   (LBA >> 16) & 0xff                );
+	writePIOByte(base, CB_WRITE_DH, ( (LBA >> 24) & 0x0f) | (flag << 4) );
+}
+
+void
+ol_ata_softreset(const ol_ata_base base)
+{
+	writePIOByte(base, CB_WRITE_DC, (1 << 2) );
+	writePIOByte(base, CB_WRITE_DC, 0);
+}
+
+ol_ata_type
+ol_ata_detect_drive_type(const ol_ata_base base, const boolean slave)
+{
+	writePIOByte(base, CB_WRITE_FR, 4);
+	writePIOByte(base, CB_WRITE_DH, 0xA0 | (slave << 4) );
+	
+	readPIOByte(base, CB_WRITE_DC);
+	readPIOByte(base, CB_WRITE_DC);
+	readPIOByte(base, CB_WRITE_DC);
+	readPIOByte(base, CB_WRITE_DC);
+	
+	uint8_t cl = readPIOByte(base, CB_WRITE_CL);
+	uint8_t ch = readPIOByte(base, CB_WRITE_CH);
+	
+	if(cl == 0x14 && ch == 0xEB)
+		return ATA_TYPE_PATAPI;
+	if(cl == 0x69 && ch == 0x96)
+		return ATA_TYPE_SATAPI;
+	if(cl == 0 && ch == 0)
+		return ATA_TYPE_PATA;
+	if(cl == 0x3c && ch == 0xc3)
+		return ATA_TYPE_SATA;
+	
+	return ATA_TYPE_UNKNOWN;
+}
+
+static void
+waitDeviceNotBusy(const ol_ata_base base)
+{
+	while( readPIOByte(base, CB_READ_STAT) & (1 << 7) ) // Wait until bit 7 (busy bit) of status reg is low
+		;
+}
+
+static void
+waitDeviceReady(const ol_ata_base base)
+{
+	while( !(readPIOByte(base, CB_READ_STAT) & (1 << 6)) ) // Wait until bit 7 (busy bit) of status reg is low
+		;
+}
+
+static void
+waitDeviceData(const ol_ata_base base)
+{
+	while( !(readPIOByte(base, CB_READ_STAT) & (1 << 3)) ) // Wait until bit 7 (busy bit) of status reg is low
+		;
+}
+
+static uint8_t
+waitDeviceStatus(const ol_ata_base base)
+{
+	uint8_t status;
+	int i;
+	
+	for(i = 0; i < 4; i++)
+	{
+		status = readPIOByte(base, CB_READ_STAT);
+		
+		if( status  & (1 << 7) ) // Keep waiting while busy
+			continue;
+		
+		if( status  & (1 << 3) ) // Return when not busy and data ready
+			return ( status  & ((1 << 5) | (1 << 0)) ) ? ( (status >> 3) & 0x03 ) : 0;
+	}
+	
+	do
+	{
+		status = readPIOByte(base, CB_READ_STAT);
+		
+		if( status  & (1 << 7) ) // Keep waiting while busy
+			continue;
+		
+		if( status  & ((1 << 5) | (1 << 0)) ) // Return when not busy and error or df
+			return 0xf8 | ( (status >> 3) & 0x03 );
+		
+	} while ( 0 );
+	
+	return 0; // Return when not busy and no error or df
+}
+
+static void
+prepareDevice(const ol_ata_base base)
+{
+	waitDeviceNotBusy(base);
+	// __asm__ volatile("cli");
+	waitDeviceReady(base);
+}
+
+static inline void
+puthex_part(uint8_t num)
+{
+	if(num <= 9)
+		putc('0' + num );
+	else
+		putc( ('a' - 10) + num );
+}
+
+static void
+puthex(uint8_t num)
+{
+	puthex_part(num >> 4);
+	puthex_part(num & 0x0f);
+}
+
+static void
+puthex_int(uint32_t num)
+{
+	puthex_part((num >> 28) & 0x0f);
+	puthex_part((num >> 24) & 0x0f);
+	puthex_part((num >> 20) & 0x0f);
+	puthex_part((num >> 16) & 0x0f);
+	puthex_part((num >> 12) & 0x0f);
+	puthex_part((num >>  8) & 0x0f);
+	puthex_part((num >>  4) & 0x0f);
+	puthex_part( num        & 0x0f);
+}
+
+static void
+printBuf(const void* printbuf, const unsigned int offset, const unsigned int count)
+{
+	const char* buf = printbuf;
+	unsigned int i = offset;
+	while(i < count)
+	{
+		puthex_int(i);
+		putc(' ');
+		puthex(buf[i]);
+		while( (i % 16) != 15 )
+		{
+			i++;
+			if(!(i % 4))
+				putc(' ');
+			putc(' ');
+			puthex(buf[i]);
+		}
+		putc('\n');
+		i++;
+	}
+}
+
+void
+ol_ata_get_device_info(const ol_ata_base base, const uint8_t packet, ol_ata_data_identify_device* device)
+{
+	prepareDevice(base);
+	writePIOByte(base, CB_WRITE_CMD, packet ? 0xA1 : 0xEC);
+	waitDeviceData(base);
+	readPIOData(base, device, 256);
+	// __asm__ volatile("sti");
+}
+
+void
+ol_ata_PIO_enablefeature(const ol_ata_base base, const ol_ata_setfeatures feature)
+{
+	; // TODO: ...
+}
+
 static inline int
-ol_ata_sector_read_LBA48(ol_ata_device* device, const uint64_t LBA, const uint32_t length, void* buf)
+ol_ata_sector_read_PIO_LBA48(ol_ata_device* device, const uint64_t LBA, const uint32_t length, void* buf)
 {
 	if( LBA > device->identifier.Max48BitLBA )
 		return 0;
@@ -1053,7 +1089,7 @@ ol_ata_sector_read_LBA48(ol_ata_device* device, const uint64_t LBA, const uint32
 }
 
 static inline int
-ol_ata_sector_read_LBA28(ol_ata_device* device, const uint64_t LBA, const uint32_t length, void* buf)
+ol_ata_sector_read_PIO_LBA28(ol_ata_device* device, const uint64_t LBA, const uint32_t length, void* buf)
 {
 	uint64_t _length = length;
 	uint8_t currentLength = 0;
@@ -1072,7 +1108,81 @@ ol_ata_sector_read_LBA28(ol_ata_device* device, const uint64_t LBA, const uint32
 			return length - _length;
 		}
 		
-		readPIOData(device->base, buf, 256);
+		readPIOData(device->base, buf, (currentLength ? currentLength : 256) * device->sectorsize / 2 );
+		
+		if(currentLength == 0)
+		{
+			_length -= 256;
+			buf += 256 * device->sectorsize;
+			
+			// wait 400ns before reading more sectors...
+			readPIOByte(device->base, CB_READ_STAT);
+			readPIOByte(device->base, CB_READ_STAT);
+			readPIOByte(device->base, CB_READ_STAT);
+			readPIOByte(device->base, CB_READ_STAT);
+			
+			continue;
+		}
+	}
+	while( 0 );
+	
+	return length;
+}
+
+static int
+ol_ata_sector_read_PIO_LBA(ol_ata_device* device, const uint64_t LBA, const uint32_t length, void* buf)
+{
+	if( (LBA + length) < device->identifier.UserAddressableSectors28Bit ) // Check if last address fits in 28-bit
+		return ol_ata_sector_read_PIO_LBA28(device, LBA, length, buf);
+	
+	int smallLBASectors = device->identifier.UserAddressableSectors28Bit - LBA; // The amout of sectors that still fits in te first 28 bits...
+	
+	if( smallLBASectors > 0 ) // Maybe we can still do some sectors using 28-bit adresses
+	{
+		if(!device->identifier.CommandSetActive.BigLba) // if 48 bit adress are not supported only reading using 28-bit adress is posible
+			return ol_ata_sector_read_PIO_LBA28(device, LBA, smallLBASectors, buf);
+		
+		return ol_ata_sector_read_PIO_LBA28(device, LBA, smallLBASectors, buf) + ol_ata_sector_read_PIO_LBA48(device, LBA, length - smallLBASectors, ((char*)buf) + smallLBASectors*device->sectorsize );
+	}
+	else
+	{
+		if(!device->identifier.CommandSetActive.BigLba) // if 48 bit adress are not supported no reading is posible
+			return 0;
+		
+		return ol_ata_sector_read_PIO_LBA48(device, LBA, length, buf);
+	}
+	
+	return ol_ata_sector_read_PIO_LBA28(device, LBA, length, buf);
+}
+
+static int
+ol_ata_sector_read_PIO_CHS(ol_ata_device* device, const uint64_t LBA, const uint32_t length, void* buf)
+{
+	puts("Cannot read using CHS address at the moment...\n");
+	return 0;
+}
+
+static inline int
+ol_ata_sector_read_DMA_28(ol_ata_device* device, const uint64_t LBA, const uint32_t length, void* buf)
+{
+	uint64_t _length = length;
+	uint8_t currentLength = 0;
+	do
+	{
+		currentLength = (_length > 256)? 0 : _length;
+		
+		writePIOByte(device->base, CB_WRITE_SC, currentLength);
+		writeLBA(device->base, LBA, 0xe);
+		writePIOByte(device->base, CB_WRITE_CMD, 0x20);
+		
+		uint8_t status = waitDeviceStatus(device->base);
+		if(status)
+		{
+			printf("ERROR while reading sector: 0x0%x\n", status & 0x07);
+			return length - _length;
+		}
+		
+		readPIOData(device->base, buf, (currentLength ? currentLength : 256) * device->sectorsize / 2 );
 		
 		if(currentLength == 0)
 		{
@@ -1094,26 +1204,46 @@ ol_ata_sector_read_LBA28(ol_ata_device* device, const uint64_t LBA, const uint32
 }
 
 static inline int
-ol_ata_sector_read_CHS(ol_ata_device* device, const uint64_t LBA, const uint32_t length, void* buf)
+ol_ata_sector_read_DMA_48(ol_ata_device* device, const uint64_t LBA, const uint32_t length, void* buf)
 {
-	puts("Cannot read using CHS address at the moment...\n");
+	puts("Cannot read using 48 bit DMA at the moment...\n");
 	return 0;
 }
 
-int
+static int
+ol_ata_sector_read_DMA(ol_ata_device* device, const uint64_t LBA, const uint32_t length, void* buf)
+{
+	if( (LBA + length) < device->identifier.UserAddressableSectors28Bit ) // Check if last address fits in 28-bit
+		return ol_ata_sector_read_DMA_28(device, LBA, length, buf);
+	
+	int smallLBASectors = device->identifier.UserAddressableSectors28Bit - LBA; // The amout of sectors that still fits in te first 28 bits...
+	
+	if( smallLBASectors > 0 ) // Maybe we can still do some sectors using 28-bit adresses
+	{
+		if(!device->identifier.CommandSetActive.BigLba) // if 48 bit adress are not supported only reading using 28-bit adress is posible
+			return ol_ata_sector_read_DMA_28(device, LBA, smallLBASectors, buf);
+		
+		return ol_ata_sector_read_DMA_28(device, LBA, smallLBASectors, buf) + ol_ata_sector_read_DMA_48(device, LBA, length - smallLBASectors, ((char*)buf) + smallLBASectors*device->sectorsize );
+	}
+	else
+	{
+		if(!device->identifier.CommandSetActive.BigLba) // if 48 bit adress are not supported no reading is posible
+			return 0;
+		
+		return ol_ata_sector_read_DMA_48(device, LBA, length, buf);
+	}
+	
+	return ol_ata_sector_read_DMA_28(device, LBA, length, buf);
+}
+
+inline int
 ol_ata_sector_read(ol_ata_device* device, const uint64_t LBA, const uint32_t length, void* buf)
 {
-	if(!device->identifier.Capabilities.LbaSupported)
-		return ol_ata_sector_read_CHS(device, LBA, length, buf);
-	
-	if( (LBA + length*device->sectorsize) > ((1<<28)-1) ) // Check if address fits in 28-bit
-		return ol_ata_sector_read_LBA48(device, LBA, length, buf);
-	
-	return ol_ata_sector_read_LBA28(device, LBA, length, buf);
+	return device->read(device, LBA, length, buf);
 }
 
 static inline int
-ol_ata_sector_write_LBA48(ol_ata_device* device, const uint64_t LBA, const uint32_t length, void* buf)
+ol_ata_sector_write_PIO_LBA48(ol_ata_device* device, const uint64_t LBA, const uint32_t length, const void* buf)
 {
 	if( LBA > device->identifier.Max48BitLBA )
 		return 0;
@@ -1123,10 +1253,8 @@ ol_ata_sector_write_LBA48(ol_ata_device* device, const uint64_t LBA, const uint3
 }
 
 static inline int
-ol_ata_sector_write_LBA28(ol_ata_device* device, const uint64_t LBA, const uint32_t length, void* buf)
+ol_ata_sector_write_PIO_LBA28(ol_ata_device* device, const uint64_t LBA, const uint32_t length, const void* buf)
 {
-	//TODO: Test if this works...
-	
 	uint64_t _length = length;
 	uint8_t currentLength = 0;
 	do
@@ -1144,7 +1272,7 @@ ol_ata_sector_write_LBA28(ol_ata_device* device, const uint64_t LBA, const uint3
 			return length - _length;
 		}
 		
-		writePIOData(device->base, buf, 256);
+		writePIOData(device->base, buf, (currentLength ? currentLength : 256) * device->sectorsize / 2 );
 		
 		if(currentLength == 0)
 		{
@@ -1165,37 +1293,123 @@ ol_ata_sector_write_LBA28(ol_ata_device* device, const uint64_t LBA, const uint3
 	return length;
 }
 
-static inline int
-ol_ata_sector_write_CHS(ol_ata_device* device, const uint64_t LBA, const uint32_t length, void* buf)
+static int
+ol_ata_sector_write_PIO_LBA(ol_ata_device* device, const uint64_t LBA, const uint32_t length, const void* buf)
+{
+	if( (LBA + length) < device->identifier.UserAddressableSectors28Bit ) // Check if last address fits in 28-bit
+		return ol_ata_sector_write_PIO_LBA28(device, LBA, length, buf);
+	
+	int smallLBASectors = device->identifier.UserAddressableSectors28Bit - LBA; // The amout of sectors that still fits in te first 28 bits...
+	
+	if( smallLBASectors > 0 ) // Maybe we can still do some sectors using 28-bit adresses
+	{
+		if(!device->identifier.CommandSetActive.BigLba) // if 48 bit adress are not supported only writing using 28-bit adress is posible
+			return ol_ata_sector_write_PIO_LBA28(device, LBA, smallLBASectors, buf);
+		
+		return ol_ata_sector_write_PIO_LBA28(device, LBA, smallLBASectors, buf) + ol_ata_sector_write_PIO_LBA48(device, LBA, length - smallLBASectors, ((char*)buf) + smallLBASectors*device->sectorsize );
+	}
+	else
+	{
+		if(!device->identifier.CommandSetActive.BigLba) // if 48 bit adress are not supported no writing is posible
+			return 0;
+		
+		return ol_ata_sector_write_PIO_LBA48(device, LBA, length, buf);
+	}
+	
+	return ol_ata_sector_write_PIO_LBA28(device, LBA, length, buf);
+}
+
+static int
+ol_ata_sector_write_PIO_CHS(ol_ata_device* device, const uint64_t LBA, const uint32_t length, const void* buf)
 {
 	puts("Cannot write using CHS address at the moment...\n");
 	return 0;
 }
 
-int
-ol_ata_sector_write(ol_ata_device* device, const uint64_t LBA, const uint32_t length, void* buf)
+static inline int
+ol_ata_sector_write_DMA_28(ol_ata_device* device, const uint64_t LBA, const uint32_t length, const void* buf)
 {
-	if(!device->identifier.Capabilities.LbaSupported)
-		return ol_ata_sector_write_CHS(device, LBA, length, buf);
+	puts("Cannot write using 28 bit DMA at the moment...\n");
+	return 0;
+}
+
+static inline int
+ol_ata_sector_write_DMA_48(ol_ata_device* device, const uint64_t LBA, const uint32_t length, const void* buf)
+{
+	puts("Cannot write using 48 bit DMA at the moment...\n");
+	return 0;
+}
+
+static int
+ol_ata_sector_write_DMA(ol_ata_device* device, const uint64_t LBA, const uint32_t length, const void* buf)
+{
+	if( (LBA + length) < device->identifier.UserAddressableSectors28Bit ) // Check if last address fits in 28-bit
+		return ol_ata_sector_write_DMA_28(device, LBA, length, buf);
 	
-	if( (LBA + length*device->sectorsize) > ((1<<28)-1) ) // Check if address fits in 28-bit
-		return ol_ata_sector_write_LBA48(device, LBA, length, buf);
+	int smallLBASectors = device->identifier.UserAddressableSectors28Bit - LBA; // The amout of sectors that still fits in te first 28 bits...
 	
-	return ol_ata_sector_write_LBA28(device, LBA, length, buf);
+	if( smallLBASectors > 0 ) // Maybe we can still do some sectors using 28-bit adresses
+	{
+		if(!device->identifier.CommandSetActive.BigLba) // if 48 bit adress are not supported only writing using 28-bit adress is posible
+			return ol_ata_sector_write_DMA_28(device, LBA, smallLBASectors, buf);
+		
+		return ol_ata_sector_write_DMA_28(device, LBA, smallLBASectors, buf) + ol_ata_sector_write_DMA_48(device, LBA, length - smallLBASectors, ((char*)buf) + smallLBASectors*device->sectorsize );
+	}
+	else
+	{
+		if(!device->identifier.CommandSetActive.BigLba) // if 48 bit adress are not supported no writing is posible
+			return 0;
+		
+		return ol_ata_sector_write_DMA_48(device, LBA, length, buf);
+	}
+	
+	return ol_ata_sector_write_DMA_28(device, LBA, length, buf);
+}
+
+inline int
+ol_ata_sector_write(ol_ata_device* device, const uint64_t LBA, const uint32_t length, const void* buf)
+{
+	return device->write(device, LBA, length, buf);
 }
 
 void
-ol_ata_init(uint32_t base, ol_ata_device* device)
+ol_ata_init(const ol_ata_base base, ol_ata_device* device)
 {
 	printf("Init ATA...");
 	device->base = base;
 	device->type = ol_ata_detect_drive_type(base, false);
-	ol_ata_get_device_info(device->base, &device->identifier);
+	device->packet = (device->type == ATA_TYPE_PATAPI) || (device->type == ATA_TYPE_SATAPI);
+	ol_ata_get_device_info(device->base, device->packet, &device->identifier);
 	
-	if(device->identifier.PhysicalLogicalSectorSize.LogicalSectorLongerThan256Words)
-		device->sectorsize = (1 << device->identifier.PhysicalLogicalSectorSize.LogicalSectorsPerPhysicalSector) * 512;
+	if(device->identifier.PhysicalLogicalSectorSize.Static0 == 0b01)
+	{
+		if( device->identifier.PhysicalLogicalSectorSize.LogicalSectorLongerThan256Words )
+			device->sectorsize = device->identifier.WordsPerLogicalSector;
+		else
+			device->sectorsize = 512;
+	}
 	else
-		device->sectorsize = 512;
+	{
+		device->sectorsize = DEFAULT_SECTORSIZE; // TODO: Estimate sector size by device type (HDD estimate 512, CD/DVD drive estimate 2k, ...) and warn user actual sector size could not be detected!
+	}
+	
+	if( !device->packet )
+	{
+		device->read = &ol_ata_sector_read_DMA;
+		device->write = &ol_ata_sector_write_DMA;
+	}
+	else if(device->identifier.Capabilities.LbaSupported)
+	{
+		device->read = &ol_ata_sector_read_PIO_LBA;
+		device->write = &ol_ata_sector_write_PIO_LBA;
+	}
+	else
+	{
+		device->read = &ol_ata_sector_read_PIO_CHS;
+		device->write = &ol_ata_sector_write_PIO_CHS;
+	}
+	
+	printf(" Done!\n");
 }
 
 void
@@ -1224,13 +1438,14 @@ ol_ata_test(ol_ata_device* device)
 		printf("unknown!\n");
 	}
 	
-	ol_ata_printDeviceInfo(&device->identifier);
+	ol_ata_printDeviceInfo(&device->identifier, device->sectorsize);
 	
 	printf("\nAbout to read first sector...\n");
 	pause();
 	printf("Sector data:\n");
 	
-	ol_ata_sector_read(device, 0, 1, buf);
+	//ol_ata_sector_read(device, 0, 1, buf);
+	device->read(device, 0, 1, buf);
 	
 	printBuf(buf, 0, 256);
 	pause();
@@ -1240,7 +1455,8 @@ ol_ata_test(ol_ata_device* device)
 	buf[0] = ~buf[0];
 	printf("Chaning byte 0 to 0x%x\n", buf[0]);
 	
-	ol_ata_sector_write(device, 0, 1, buf);
+	//ol_ata_sector_write(device, 0, 1, buf);
+	device->write(device, 0, 1, buf);
 	
 	printf("ATAPI test done!\n");
 }
